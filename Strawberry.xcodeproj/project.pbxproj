@@ -17,6 +17,7 @@
 
 /* Begin PBXFileReference section */
 		B8525338277C1D7400EB03EC /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
+		B8525370277D610400EB03EC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B8648627277BB92F006E1A64 /* logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = logger.swift; sourceTree = "<group>"; };
 		B892B38827782CD200049C74 /* Strawberry.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Strawberry.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B892B38B27782CD200049C74 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -56,6 +57,7 @@
 		B892B38A27782CD200049C74 /* Strawberry */ = {
 			isa = PBXGroup;
 			children = (
+				B8525370277D610400EB03EC /* Info.plist */,
 				B892B38B27782CD200049C74 /* AppDelegate.swift */,
 				B892B38D27782CD300049C74 /* Assets.xcassets */,
 				B8FC27882779657C00CE148A /* Forter.swift */,
@@ -153,17 +155,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXVariantGroup section */
-		B8525331277C02E200EB03EC /* Main.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				B8525332277C02E200EB03EC /* Base */,
-			);
-			name = Main.storyboard;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		B892B3A927782CD300049C74 /* Debug */ = {
@@ -291,6 +282,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Strawberry/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
@@ -317,6 +309,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Strawberry/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
