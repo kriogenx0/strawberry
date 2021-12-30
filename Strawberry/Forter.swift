@@ -138,7 +138,7 @@ class Forter {
                 let yearUrl = directoryUrl.appendingPathComponent(String(components.year!))
                 if !FileManager.default.fileExists(atPath: yearUrl.absoluteString) {
                     do {
-                        
+                        try FileManager.default.createDirectory(at: yearUrl, withIntermediateDirectories: false)
                     } catch {
                         log.error("Could not create directory: \(yearUrl.relativePath)")
                         return
@@ -146,7 +146,7 @@ class Forter {
                 }
                 
                 // Ensure Month-Day folder exists
-                let monthDay = "\(components.month)-\(components.day)"
+                let monthDay = "\(components.month!)-\(components.day!)"
                 let monthDayUrl = yearUrl.appendingPathComponent(monthDay, isDirectory: true)
                 if !FileManager.default.fileExists(atPath: monthDayUrl.absoluteString) {
                     do {
@@ -208,28 +208,19 @@ class Forter {
             log.info("No volumes found.")
             return
         } else {
-            log.info("Volumes found: \(volumes.count)")
+            log.debug("Volumes found: \(volumes.count)")
             
-            for (index, volume) in volumes.enumerated() {
-                let volumePath = volume.relativePath
-//                do {
-////                    let volumeTypeValues = try volume.resourceValues(forKeys: [.volumeIsLocalKey, .volumeIsReadOnlyKey])
-////                    let volumeWillRun: Bool = !volumeTypeValues.volumeIsLocal! && (volumeTypeValues.isWritable ?? false)
-//
-//                } catch {
-//                    log.error("Volume could not be read: \( volumePath )")
-//                }
-                    
-                let volumeIsSystem = volume.pathComponents.count == 1 || (volume.pathComponents.indices.contains(1) && volume.pathComponents[1] == "System")
-                
-//                log.info("\(index) \(volumePath) - System: \( String( volumeIsSystem ) )")
+            // Loop through each
+            // for (index, volume) in volumes.enumerated() {
+            for volume in volumes {
+                // let volumePath = volume.relativePath
+                let volumeIsSystem = volume.pathComponents.count < 2 || volume.pathComponents[1] != "Volumes"
+                // log.info("\(index) \(volumePath) - System: \( String( volumeIsSystem ) )")
 
                 if (!volumeIsSystem) {
-                    log.info("\(index) \(volumePath) - System: \( String( volumeIsSystem ) )")
                     self.runOnVolume(volume: volume)
                 }
             }
-            
         }
     }
     
