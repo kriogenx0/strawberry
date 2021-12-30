@@ -95,63 +95,92 @@ class Forter {
                     continue
                 }
                 
-                log.info("Organizing file: \(secondFolderName)/\(fileName)")
+                let fileLongName = "\(secondFolderName)/\(fileName)"
                 
-                
+                log.info("Organizing file: \(fileLongName)")
                 
                 // Get attributes
                 var attr: [FileAttributeKey : Any]
                 do {
                     attr = try FileManager.default.attributesOfItem(atPath: fileUrl.relativePath)
                 } catch {
-                    log.info("Could not get attributes: \(error.localizedDescription)")
+                    log.info("Could not get attributes for file \(fileLongName): \(error.localizedDescription)")
                     continue
                 }
                 
 //                log.debug("Attributes: \(attr  as AnyObject)")
-                dump(attr)
+//                dump(attr)
+                
+                let date = attr[FileAttributeKey.modificationDate] as! Date
+                log.debug("File modification date: \(date.description)")
+                
+                let createdDate = attr[FileAttributeKey.creationDate] as! Date
+                log.debug("File creation date: \(createdDate.description)")
+                
+                // Get Year & Month-day
+                let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+                
+                /*
+                let date = attr[FileAttributeKey.modificationDate] as! Date
+
+                let yearFormatter = DateFormatter()
+                yearFormatter.dateFormat = "yyyy"
+                let year = yearFormatter.string(from: date)
+
+                // Get month-day
+                let monthDateFormatter = DateFormatter()
+                monthDateFormatter.dateFormat = "mm-dd"
+                let monthDay = monthDateFormatter.string(from: date)
+                */
+                
+                // Ensure Year folder exists
+                // TODO: cache the creation of this folder, so future file disk checks don't need to happen
+                let yearUrl = directoryUrl.appendingPathComponent(String(components.year!))
+                if !FileManager.default.fileExists(atPath: yearUrl.absoluteString) {
+                    do {
+                        
+                    } catch {
+                        log.error("Could not create directory: \(yearUrl.relativePath)")
+                        return
+                    }
+                }
+                
+                // Ensure Month-Day folder exists
+                let monthDay = "\(components.month)-\(components.day)"
+                let monthDayUrl = yearUrl.appendingPathComponent(monthDay, isDirectory: true)
+                if !FileManager.default.fileExists(atPath: monthDayUrl.absoluteString) {
+                    do {
+                        try FileManager.default.createDirectory(at: monthDayUrl, withIntermediateDirectories: false)
+                    } catch {
+                        log.error("Could not create directory: \(monthDayUrl.relativePath)")
+                        return
+                    }
+                }
+                
+                // Ensure format folder exists
+                let formatFolderUrl = monthDayUrl.appendingPathComponent(secondFolderName, isDirectory: true)
+                if !FileManager.default.fileExists(atPath: formatFolderUrl.absoluteString) {
+                    do {
+                        try FileManager.default.createDirectory(at: formatFolderUrl, withIntermediateDirectories: false)
+                    } catch {
+                        log.error("Could not create directory: \(formatFolderUrl.relativePath)")
+                        return
+                    }
+                }
+                
+                
+                // Move file
+                let destinationFileUrl = formatFolderUrl.appendingPathComponent(fileName, isDirectory: false)
+                do {
+                    try FileManager.default.moveItem(at: fileUrl, to: destinationFileUrl)
+                } catch {
+                    log.error("Could not move file: \(fileUrl.relativePath)")
+                    continue
+                }
+                
+                log.info("Moved file: \(fileUrl.relativePath) to \(destinationFileUrl.relativePath)")
+                
             }
-            
-            
-            
-        
-            
-            
-            
-            
-            
-            /*
-            let date = attr[FileAttributeKey.modificationDate] as! Date
-            
-            // Get Year
-            let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
-//                components.year
-//                components.month
-//
-//
-//                let yearFormatter = DateFormatter()
-//                yearFormatter.dateFormat = "yyyy"
-//                let year = yearFormatter.string(from: date)
-//
-//                // Get month-day
-//                let monthDateFormatter = DateFormatter()
-//                monthDateFormatter.dateFormat = "mm-dd"
-//                let monthDay = monthDateFormatter.string(from: date)
-            
-            
-            // Ensure Year folder exists
-            let yearUrl = directoryUrl.appendingPathComponent(components.year as! String, isDirectory: true)
-            if !FileManager.default.fileExists(atPath: yearUrl.absoluteString) {
-                try FileManager.default.createDirectory(at: yearUrl, withIntermediateDirectories: false)
-            }
-            
-            // Ensure Month-Day folder exists
-            let monthDayUrl = directoryUrl.appendingPathComponent("\(components.month)-\(components.day)", isDirectory: true)
-            if !FileManager.default.fileExists(atPath: yearUrl.absoluteString) {
-                try FileManager.default.createDirectory(at: yearUrl, withIntermediateDirectories: false)
-            }
-            */
-            
             
             
         }
