@@ -30,6 +30,7 @@ class Forter {
     }
     
     static let regex = try! NSRegularExpression(pattern: "\\d{4}")
+    static let videoFileExtensions = ["mp4", "mp5", "mpeg", "mov", "flv", "f4v", "avchd", "avi", "mkv", "heif", "hevc", "lrv", "thm"]
     
     static func runOnDirectory(directoryUrl: URL) {
         log.info("runOnDirectory \(directoryUrl)")
@@ -158,8 +159,11 @@ class Forter {
                     }
                 }
                 
+                // Check if file is a video file
+                let formatFolderName = videoFileExtensions.contains(fileUrl.pathExtension.lowercased()) ? "\(secondFolderName)-video" : secondFolderName
+                
                 // Ensure format folder exists
-                let formatFolderUrl = monthDayUrl.appendingPathComponent(secondFolderName, isDirectory: true)
+                let formatFolderUrl = monthDayUrl.appendingPathComponent(formatFolderName, isDirectory: true)
                 if !FileManager.default.fileExists(atPath: formatFolderUrl.relativePath) {
                     do {
                         try FileManager.default.createDirectory(at: formatFolderUrl, withIntermediateDirectories: false)
