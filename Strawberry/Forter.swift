@@ -43,6 +43,7 @@ class Forter {
         }
         log.info("Directory files: \(firstDirFiles.count)")
         
+        var filesOrganized = 0
         
         // 2nd directory contents
         for secondFolderName in firstDirFiles {
@@ -56,7 +57,7 @@ class Forter {
             FileManager.default.fileExists(atPath: secondFolderUrl.relativePath, isDirectory: &isDirectory)
             // log.info("is dir \(isDirectory)")
             if !isDirectory.boolValue {
-                log.debug("Skipping file: \(secondFolderName)")
+                // log.debug("Skipping file: \(secondFolderName)")
                 continue
             }
             
@@ -65,7 +66,7 @@ class Forter {
             let matches = self.regex.matches(in: secondFolderName, options: [], range: range)
             // log.info("Matches: \(matches.count)")
             if (matches.count > 0) {
-                log.debug("Skipping year folder: \(secondFolderName)")
+                // log.debug("Skipping year folder: \(secondFolderName)")
                 continue
             }
             
@@ -111,11 +112,11 @@ class Forter {
 //                log.debug("Attributes: \(attr  as AnyObject)")
 //                dump(attr)
                 
-                let date = attr[FileAttributeKey.modificationDate] as! Date
-                log.debug("File modification date: \(date.description)")
-                
+                let modifiedDate = attr[FileAttributeKey.modificationDate] as! Date
                 let createdDate = attr[FileAttributeKey.creationDate] as! Date
-                log.debug("File creation date: \(createdDate.description)")
+                log.debug("File dates - created: \(createdDate), modified: \(modifiedDate.description)")
+                
+                let date = createdDate < modifiedDate ? createdDate : modifiedDate
                 
                 // Get Year & Month-day
                 let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
@@ -179,11 +180,14 @@ class Forter {
                 }
                 
                 log.info("Moved file: \(fileUrl.relativePath) to \(destinationFileUrl.relativePath)")
+                filesOrganized += 1
                 
             }
             
             
         }
+        
+        log.info("Files organized: \(filesOrganized)")
          
     }
     
