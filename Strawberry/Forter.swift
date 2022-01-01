@@ -136,7 +136,7 @@ class Forter {
                 // Ensure Year folder exists
                 // TODO: cache the creation of this folder, so future file disk checks don't need to happen
                 let yearUrl = directoryUrl.appendingPathComponent(String(components.year!))
-                if !FileManager.default.fileExists(atPath: yearUrl.absoluteString) {
+                if !FileManager.default.fileExists(atPath: yearUrl.relativePath) {
                     do {
                         try FileManager.default.createDirectory(at: yearUrl, withIntermediateDirectories: false)
                     } catch {
@@ -148,7 +148,7 @@ class Forter {
                 // Ensure Month-Day folder exists
                 let monthDay = "\(components.month!)-\(components.day!)"
                 let monthDayUrl = yearUrl.appendingPathComponent(monthDay, isDirectory: true)
-                if !FileManager.default.fileExists(atPath: monthDayUrl.absoluteString) {
+                if !FileManager.default.fileExists(atPath: monthDayUrl.relativePath) {
                     do {
                         try FileManager.default.createDirectory(at: monthDayUrl, withIntermediateDirectories: false)
                     } catch {
@@ -159,7 +159,7 @@ class Forter {
                 
                 // Ensure format folder exists
                 let formatFolderUrl = monthDayUrl.appendingPathComponent(secondFolderName, isDirectory: true)
-                if !FileManager.default.fileExists(atPath: formatFolderUrl.absoluteString) {
+                if !FileManager.default.fileExists(atPath: formatFolderUrl.relativePath) {
                     do {
                         try FileManager.default.createDirectory(at: formatFolderUrl, withIntermediateDirectories: false)
                     } catch {
