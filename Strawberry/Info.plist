@@ -4,6 +4,8 @@
 <dict>
 	<key>NSRemovableVolumesUsageDescription</key>
 	<string>This is used for reading inserted SD cards and other removable drives.</string>
+	<key>LSUIElement</key>
+	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict/>
 </dict>

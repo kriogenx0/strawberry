@@ -120,10 +120,9 @@ class Forter {
                 let date = createdDate < modifiedDate ? createdDate : modifiedDate
                 
                 // Get Year & Month-day
-                let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
-                
-                /*
-                let date = attr[FileAttributeKey.modificationDate] as! Date
+                // let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+                // let year = String(components.year!)
+                // let monthDay = "\(components.month!)-\(components.day!)"
 
                 let yearFormatter = DateFormatter()
                 yearFormatter.dateFormat = "yyyy"
@@ -131,13 +130,12 @@ class Forter {
 
                 // Get month-day
                 let monthDateFormatter = DateFormatter()
-                monthDateFormatter.dateFormat = "mm-dd"
+                monthDateFormatter.dateFormat = "MM-dd"
                 let monthDay = monthDateFormatter.string(from: date)
-                */
                 
                 // Ensure Year folder exists
                 // TODO: cache the creation of this folder, so future file disk checks don't need to happen
-                let yearUrl = directoryUrl.appendingPathComponent(String(components.year!))
+                let yearUrl = directoryUrl.appendingPathComponent(year)
                 if !FileManager.default.fileExists(atPath: yearUrl.relativePath) {
                     do {
                         try FileManager.default.createDirectory(at: yearUrl, withIntermediateDirectories: false)
@@ -148,7 +146,6 @@ class Forter {
                 }
                 
                 // Ensure Month-Day folder exists
-                let monthDay = "\(components.month!)-\(components.day!)"
                 let monthDayUrl = yearUrl.appendingPathComponent(monthDay, isDirectory: true)
                 if !FileManager.default.fileExists(atPath: monthDayUrl.relativePath) {
                     do {
@@ -196,15 +193,15 @@ class Forter {
     }
     
     static func runOnVolume(volume: URL) {
-        log.debug("Forter.runOnVolume - \(volume.absoluteString)")
+        // log.debug("Forter.runOnVolume - \(volume.absoluteString)")
         
         let firstDirUrl = volume.appendingPathComponent("DCIM", isDirectory: true)
-        log.debug("First directory: \(firstDirUrl)")
+        // log.debug("First directory: \(firstDirUrl)")
 
         if (FileManager.default.fileExists(atPath: firstDirUrl.relativePath)) {
             self.runOnDirectory(directoryUrl: firstDirUrl)
         } else {
-            log.critical("Directory does not exist \(firstDirUrl)")
+            // log.debug("Directory does not exist \(firstDirUrl)")
         }
     }
     
