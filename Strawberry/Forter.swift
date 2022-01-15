@@ -7,6 +7,7 @@
 
 import Foundation
 import os
+import AppKit
 
 class Forter {
     
@@ -208,6 +209,7 @@ class Forter {
     static func run() {
         log.debug("Forter.run")
         let volumes = self.volumesList()
+        var volumesRan: [String] = []
         
         if (!(volumes.count > 0)) {
             log.info("No volumes found.")
@@ -224,9 +226,15 @@ class Forter {
 
                 if (!volumeIsSystem) {
                     self.runOnVolume(volume: volume)
+                    volumesRan.append("\(volume.relativePath)")
                 }
             }
         }
+        
+        let message = volumesRan.count > 0 ? "Ran on \(volumesRan.count) Volumes." : "No Volumes Found."
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.runModal()
     }
     
 }

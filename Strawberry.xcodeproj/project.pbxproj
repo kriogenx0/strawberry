@@ -7,15 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AB2647A927933749008DA1DF /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2647A827933749008DA1DF /* MenuBarController.swift */; };
 		B8525339277C1D7400EB03EC /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B8525338277C1D7400EB03EC /* Main.storyboard */; };
 		B8648628277BB930006E1A64 /* logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8648627277BB92F006E1A64 /* logger.swift */; };
 		B892B38C27782CD200049C74 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B892B38B27782CD200049C74 /* AppDelegate.swift */; };
 		B892B38E27782CD300049C74 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B892B38D27782CD300049C74 /* Assets.xcassets */; };
-		B892B3B627782D8A00049C74 /* StrawberryMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B892B3B527782D8A00049C74 /* StrawberryMenu.swift */; };
 		B8FC27892779657C00CE148A /* Forter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC27882779657C00CE148A /* Forter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AB2647A827933749008DA1DF /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		B8525338277C1D7400EB03EC /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
 		B8525370277D610400EB03EC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B8648627277BB92F006E1A64 /* logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = logger.swift; sourceTree = "<group>"; };
@@ -23,7 +24,6 @@
 		B892B38B27782CD200049C74 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B892B38D27782CD300049C74 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B892B39227782CD300049C74 /* Strawberry.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Strawberry.entitlements; sourceTree = "<group>"; };
-		B892B3B527782D8A00049C74 /* StrawberryMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrawberryMenu.swift; sourceTree = "<group>"; };
 		B8FC27882779657C00CE148A /* Forter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Forter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -58,23 +58,15 @@
 			isa = PBXGroup;
 			children = (
 				B8525370277D610400EB03EC /* Info.plist */,
-				B892B38B27782CD200049C74 /* AppDelegate.swift */,
 				B892B38D27782CD300049C74 /* Assets.xcassets */,
-				B8FC27882779657C00CE148A /* Forter.swift */,
-				B8648627277BB92F006E1A64 /* logger.swift */,
 				B8525338277C1D7400EB03EC /* Main.storyboard */,
 				B892B39227782CD300049C74 /* Strawberry.entitlements */,
-				B892B3B427782D6400049C74 /* UI */,
+				B892B38B27782CD200049C74 /* AppDelegate.swift */,
+				B8FC27882779657C00CE148A /* Forter.swift */,
+				B8648627277BB92F006E1A64 /* logger.swift */,
+				AB2647A827933749008DA1DF /* MenuBarController.swift */,
 			);
 			path = Strawberry;
-			sourceTree = "<group>";
-		};
-		B892B3B427782D6400049C74 /* UI */ = {
-			isa = PBXGroup;
-			children = (
-				B892B3B527782D8A00049C74 /* StrawberryMenu.swift */,
-			);
-			path = UI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -149,8 +141,8 @@
 			files = (
 				B8FC27892779657C00CE148A /* Forter.swift in Sources */,
 				B892B38C27782CD200049C74 /* AppDelegate.swift in Sources */,
-				B892B3B627782D8A00049C74 /* StrawberryMenu.swift in Sources */,
 				B8648628277BB930006E1A64 /* logger.swift in Sources */,
+				AB2647A927933749008DA1DF /* MenuBarController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
