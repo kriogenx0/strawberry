@@ -29,7 +29,7 @@ class MenuBarController {
         statusBarItem.menu = statusBarMenu
         
         statusBarMenu.addItem(
-            withTitle: "Run",
+            withTitle: "Organize All Volumes",
             action: #selector(AppDelegate.run),
             keyEquivalent: "")
 

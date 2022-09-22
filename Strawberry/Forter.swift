@@ -30,7 +30,7 @@ class Forter {
         */
     }
     
-    static let regex = try! NSRegularExpression(pattern: "\\d{4}")
+    static let yearRegex = try! NSRegularExpression(pattern: "\\d{4}")
     static let videoFileExtensions = ["mp4", "mp5", "mpeg", "mov", "flv", "f4v", "avchd", "avi", "mkv", "heif", "hevc", "lrv", "thm"]
     
     static func runOnDirectory(directoryUrl: URL) {
@@ -65,7 +65,7 @@ class Forter {
             
             // Check for Year folder
             let range = NSRange(location: 0, length: secondFolderName.utf16.count)
-            let matches = self.regex.matches(in: secondFolderName, options: [], range: range)
+            let matches = self.yearRegex.matches(in: secondFolderName, options: [], range: range)
             // log.info("Matches: \(matches.count)")
             if (matches.count > 0) {
                 // log.debug("Skipping year folder: \(secondFolderName)")
@@ -185,7 +185,6 @@ class Forter {
                 filesOrganized += 1
                 
             }
-            
             
         }
         

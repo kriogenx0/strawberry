@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  Strawberry
 //
-//  Created by Alex Vaos Personal on 12/25/21.
+//  Created by Alex Vaos on 12/25/21.
 //
 
 import Cocoa
