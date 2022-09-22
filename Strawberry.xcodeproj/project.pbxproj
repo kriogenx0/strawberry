@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		AB2647A927933749008DA1DF /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2647A827933749008DA1DF /* MenuBarController.swift */; };
+		ABA4A851279C96B100B913E5 /* USBWatcherHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABA4A850279C96B100B913E5 /* USBWatcherHandler.swift */; };
+		ABCC2924279B178400F11B16 /* USBWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCC2923279B178400F11B16 /* USBWatcher.swift */; };
 		B8525339277C1D7400EB03EC /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B8525338277C1D7400EB03EC /* Main.storyboard */; };
 		B8648628277BB930006E1A64 /* logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8648627277BB92F006E1A64 /* logger.swift */; };
 		B892B38C27782CD200049C74 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B892B38B27782CD200049C74 /* AppDelegate.swift */; };
@@ -17,6 +19,8 @@
 
 /* Begin PBXFileReference section */
 		AB2647A827933749008DA1DF /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		ABA4A850279C96B100B913E5 /* USBWatcherHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBWatcherHandler.swift; sourceTree = "<group>"; };
+		ABCC2923279B178400F11B16 /* USBWatcher.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = USBWatcher.swift; sourceTree = "<group>"; };
 		B8525338277C1D7400EB03EC /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
 		B8525370277D610400EB03EC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B8648627277BB92F006E1A64 /* logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = logger.swift; sourceTree = "<group>"; };
@@ -65,6 +69,8 @@
 				B8FC27882779657C00CE148A /* Forter.swift */,
 				B8648627277BB92F006E1A64 /* logger.swift */,
 				AB2647A827933749008DA1DF /* MenuBarController.swift */,
+				ABCC2923279B178400F11B16 /* USBWatcher.swift */,
+				ABA4A850279C96B100B913E5 /* USBWatcherHandler.swift */,
 			);
 			path = Strawberry;
 			sourceTree = "<group>";
@@ -139,10 +145,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABA4A851279C96B100B913E5 /* USBWatcherHandler.swift in Sources */,
 				B8FC27892779657C00CE148A /* Forter.swift in Sources */,
 				B892B38C27782CD200049C74 /* AppDelegate.swift in Sources */,
 				B8648628277BB930006E1A64 /* logger.swift in Sources */,
 				AB2647A927933749008DA1DF /* MenuBarController.swift in Sources */,
+				ABCC2924279B178400F11B16 /* USBWatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
