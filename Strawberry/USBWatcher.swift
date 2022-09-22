@@ -9,13 +9,7 @@ import Foundation
 import IOKit
 import IOKit.usb
 
-public protocol USBWatcherDelegate: class {
-    /// Called on the main thread when a device is connected.
-    func deviceAdded(_ device: io_object_t)
 
-    /// Called on the main thread when a device is disconnected.
-    func deviceRemoved(_ device: io_object_t)
-}
 
 /// An object which observes USB devices added and removed from the system.
 /// Abstracts away most of the ugliness of IOKit APIs.
@@ -26,20 +20,29 @@ public class USBWatcher {
     private var removedIterator: io_iterator_t = 0
 
     public init(delegate: USBWatcherDelegate) {
+        print("init")
         self.delegate = delegate
 
         func handleNotification(instance: UnsafeMutableRawPointer?, _ iterator: io_iterator_t) {
             let watcher = Unmanaged<USBWatcher>.fromOpaque(instance!).takeUnretainedValue()
+            
+            print("handleNotification iterator: \(iterator), addedIterator: \(watcher.addedIterator), removedIterator: \(watcher.removedIterator)")
+            
             let handler: ((io_iterator_t) -> Void)?
             switch iterator {
-            case watcher.addedIterator: handler = watcher.delegate?.deviceAdded
-            case watcher.removedIterator: handler = watcher.delegate?.deviceRemoved
-            default: assertionFailure("received unexpected IOIterator"); return
+                case watcher.addedIterator: handler = watcher.delegate?.deviceAdded
+                case watcher.removedIterator: handler = watcher.delegate?.deviceRemoved
+                default: assertionFailure("received unexpected IOIterator"); return
             }
             while case let device = IOIteratorNext(iterator), device != IO_OBJECT_NULL {
+                print("\(device)")
                 handler?(device)
                 IOObjectRelease(device)
             }
+        }
+        
+        func handleUsbRemoved(instance: UnsafeMutableRawPointer?, _ iterator: io_iterator_t) {
+            print("handleUsbRemoved")
         }
 
         let query = IOServiceMatching(kIOUSBDeviceClassName)
@@ -67,6 +70,7 @@ public class USBWatcher {
     }
 
     deinit {
+        print("deinit")
         IOObjectRelease(addedIterator)
         IOObjectRelease(removedIterator)
         IONotificationPortDestroy(notificationPort)
@@ -88,12 +92,10 @@ extension io_object_t {
 }
 
 
-/*
-import PlaygroundSupport
-PlaygroundPage.current.needsIndefiniteExecution = true
+public protocol USBWatcherDelegate: AnyObject {
+    /// Called on the main thread when a device is connected.
+    func deviceAdded(_ device: io_object_t)
 
-
-
-let example = Example()
-
-*/
+    /// Called on the main thread when a device is disconnected.
+    func deviceRemoved(_ device: io_object_t)
+}

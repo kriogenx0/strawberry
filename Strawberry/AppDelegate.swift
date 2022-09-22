@@ -11,6 +11,7 @@ import os
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
     
+    var usbWatcher: USBWatcherHandler?
     let statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
@@ -18,7 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         _ = MenuBarController(statusBarItem)
         
         // let usbWatcher = USBWatcher(delegate: self)
-        // Forter.run()
+        self.usbWatcher = USBWatcherHandler()
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
