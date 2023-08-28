@@ -192,6 +192,14 @@ class Forter {
          
     }
     
+    static func canRunOnVolume(volume: URL) -> Bool {
+        let dcimUrl = volume.appendingPathComponent("DCIM", isDirectory: true)
+        let dcimExists = FileManager.default.fileExists(atPath: dcimUrl.relativePath)
+        let volumeIsSystem = volume.pathComponents.count < 2 || volume.pathComponents[1] != "Volumes"
+        
+        return !volumeIsSystem && dcimExists
+    }
+    
     static func runOnVolume(volume: URL) {
         // log.debug("Forter.runOnVolume - \(volume.absoluteString)")
         
@@ -220,17 +228,15 @@ class Forter {
             // for (index, volume) in volumes.enumerated() {
             for volume in volumes {
                 // let volumePath = volume.relativePath
-                let volumeIsSystem = volume.pathComponents.count < 2 || volume.pathComponents[1] != "Volumes"
-                // log.info("\(index) \(volumePath) - System: \( String( volumeIsSystem ) )")
-
-                if (!volumeIsSystem) {
+                
+                if (self.canRunOnVolume(volume: volume)) {
                     self.runOnVolume(volume: volume)
-                    volumesRan.append("\(volume.relativePath)")
+                    volumesRan.append("\(volume.lastPathComponent)")
                 }
             }
         }
         
-        let message = volumesRan.count > 0 ? "Ran on \(volumesRan.count) Volumes." : "No Volumes Found."
+        let message = volumesRan.count > 0 ? "Ran on Volumes: \(volumesRan.joined())" : "No Volumes Found."
         let alert = NSAlert()
         alert.messageText = message
         alert.runModal()
