@@ -15,7 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         
-        MenuBarController(statusBarItem)
+        _ = MenuBarController(statusBarItem)
         
         // let usbWatcher = USBWatcher(delegate: self)
         // Forter.run()
@@ -28,15 +28,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }
-    
-    
-    @objc func run(sender: NSStatusItem) {
-        Forter.run()
-    }
+
     
     @objc func quit(_ sender: Any) {
         NSApp.terminate(nil)
     }
     
+    @objc func organizeAllVolumes(sender: NSStatusItem) {
+        Forter.run()
+    }
+    
+    @objc func runOnDirectory(_ sender: Any) {
+        var filename: String = ""
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        if panel.runModal() == .OK {
+            filename = panel.url?.lastPathComponent ?? "<none>"
+        }
+        
+        print(filename)
+    }
 }
 

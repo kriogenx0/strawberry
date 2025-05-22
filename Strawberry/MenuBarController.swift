@@ -30,8 +30,16 @@ class MenuBarController {
         
         statusBarMenu.addItem(
             withTitle: "Organize All Volumes",
-            action: #selector(AppDelegate.run),
+            action: #selector(AppDelegate.organizeAllVolumes),
+            keyEquivalent: ""
+        )
+        
+        /*
+        statusBarMenu.addItem(
+            withTitle: "Run on Directory...",
+            action: #selector(AppDelegate.runOnDirectory),
             keyEquivalent: "")
+        */
 
         statusBarMenu.addItem(
             withTitle: "Quit",
