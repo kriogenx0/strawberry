@@ -29,26 +29,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    
-    @objc func quit(_ sender: Any) {
-        NSApp.terminate(nil)
-    }
-    
+    // Menubar Actions
     @objc func organizeAllVolumes(sender: NSStatusItem) {
-        Forter.run()
+        Forter.runOnAllVolumes()
     }
     
     @objc func runOnDirectory(_ sender: Any) {
-        var filename: String = ""
+        var fileUrl: URL?
+
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         if panel.runModal() == .OK {
-            filename = panel.url?.lastPathComponent ?? "<none>"
+            fileUrl = panel.url
         }
         
-        print(filename)
+        print(fileUrl?.absoluteString ?? "No file path")
+        
+        if let fileUrlUnwrapped = fileUrl {
+            Forter.runOnDirectory(directoryUrl: fileUrlUnwrapped)
+            Forter.showInFinder(url: fileUrlUnwrapped)
+        }
+    }
+    
+    @objc func quit(_ sender: Any) {
+        NSApp.terminate(nil)
     }
 }
 

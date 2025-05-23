@@ -34,17 +34,17 @@ class MenuBarController {
             keyEquivalent: ""
         )
         
-        /*
         statusBarMenu.addItem(
             withTitle: "Run on Directory...",
             action: #selector(AppDelegate.runOnDirectory),
-            keyEquivalent: "")
-        */
+            keyEquivalent: ""
+        )
 
         statusBarMenu.addItem(
             withTitle: "Quit",
             action: #selector(AppDelegate.quit),
-            keyEquivalent: "")
+            keyEquivalent: ""
+        )
         
     }
     

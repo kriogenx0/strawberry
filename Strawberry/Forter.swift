@@ -213,7 +213,7 @@ class Forter {
         }
     }
     
-    static func run() {
+    static func runOnAllVolumes() {
         log.debug("Forter.run")
         let volumes = self.volumesList()
         var volumesRan: [String] = []
@@ -232,6 +232,7 @@ class Forter {
                 if (self.canRunOnVolume(volume: volume)) {
                     self.runOnVolume(volume: volume)
                     volumesRan.append("\(volume.lastPathComponent)")
+                    self.showInFinder(url: volume)
                 }
             }
         }
@@ -240,6 +241,10 @@ class Forter {
         let alert = NSAlert()
         alert.messageText = message
         alert.runModal()
+    }
+    
+    static func showInFinder(url: URL) {
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.path)
     }
     
 }
