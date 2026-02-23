@@ -9,62 +9,82 @@ import Foundation
 import Cocoa
 import os
 
-class MenuBarController {
-    
+class MenuBarController: NSObject, NSMenuDelegate {
+
     static let menuIconOn = NSImage(named: NSImage.Name("menubar-on"))
     static let menuIconOff = NSImage(named: NSImage.Name("menubar-off"))
-    
-    @IBOutlet weak var menuBarMenu: NSMenu!
+
+    private let statusBarItem: NSStatusItem
+    private let statusBarMenu: NSMenu
 
     init(_ statusBarItem: NSStatusItem) {
+        self.statusBarItem = statusBarItem
+
         let menuButton = statusBarItem.button
-        
         menuButton?.image = MenuBarController.menuIconOn
         menuButton?.image?.size = NSSize(width: 18, height: 18)
-        // menuButton?.sendAction(on: [.leftMouseDown, .rightMouseDown])
-        // menuButton?.action = #selector(MenuBarController.menubarClick(sender:))
-        // menuButton?.image = MenuBarController.menuIconOff
-        
-        let statusBarMenu = NSMenu(title: "Strawberry")
+
+        statusBarMenu = NSMenu(title: "Strawberry")
+
+        super.init()
+
+        statusBarMenu.delegate = self
         statusBarItem.menu = statusBarMenu
-        
+
+        buildMenu()
+    }
+
+    func buildMenu() {
+        statusBarMenu.removeAllItems()
+
         statusBarMenu.addItem(
             withTitle: "Organize All Volumes",
             action: #selector(AppDelegate.organizeAllVolumes),
             keyEquivalent: ""
         )
-        
+
+        // Run on Drive submenu
+        let runOnDriveItem = NSMenuItem(title: "Run on Drive", action: nil, keyEquivalent: "")
+        let driveSubmenu = NSMenu(title: "Run on Drive")
+
+        let volumes = Forter.volumesList()
+        let runnableVolumes = volumes.filter { Forter.canRunOnVolume(volume: $0) }
+
+        if runnableVolumes.isEmpty {
+            let noVolumesItem = NSMenuItem(title: "No Drives Available", action: nil, keyEquivalent: "")
+            noVolumesItem.isEnabled = false
+            driveSubmenu.addItem(noVolumesItem)
+        } else {
+            for volume in runnableVolumes {
+                let name = volume.lastPathComponent
+                let item = NSMenuItem(title: name, action: #selector(AppDelegate.runOnDrive(_:)), keyEquivalent: "")
+                item.representedObject = volume
+                driveSubmenu.addItem(item)
+            }
+        }
+
+        runOnDriveItem.submenu = driveSubmenu
+        statusBarMenu.addItem(runOnDriveItem)
+
         statusBarMenu.addItem(
-            withTitle: "Run on Directory...",
-            action: #selector(AppDelegate.runOnDirectory),
+            withTitle: "Run on Folder...",
+            action: #selector(AppDelegate.runOnFolder(_:)),
             keyEquivalent: ""
         )
+
+        statusBarMenu.addItem(NSMenuItem.separator())
 
         statusBarMenu.addItem(
             withTitle: "Quit",
             action: #selector(AppDelegate.quit),
             keyEquivalent: ""
         )
-        
     }
-    
-    
-    /*
-    @objc func menubarClick(sender: NSStatusItem) {
-        let event = NSApp.currentEvent!
-        if event.type == NSEvent.EventType.rightMouseDown {
-            // TODO Toggle Enabled
-        } else {
-            sender.popUpMenu(menuBarMenu)
-        }
-    }
-  
-    @IBAction func launchAtLogin(_ sender: NSMenuItem) {
-        if (sender.state == .on) {
-            // let success = SMLoginItemSetEnabled(launcherBundleId as CFString, false)
-        } else {
 
+    // Rebuild the drive list each time the menu opens so it stays current
+    func menuWillOpen(_ menu: NSMenu) {
+        if menu === statusBarMenu {
+            buildMenu()
         }
     }
-    */
 }

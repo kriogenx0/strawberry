@@ -10,51 +10,69 @@ import os
 
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
-    
+
     let statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    var menuBarController: MenuBarController?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        
-        _ = MenuBarController(statusBarItem)
-        
-        // let usbWatcher = USBWatcher(delegate: self)
-        // Forter.run()
+        menuBarController = MenuBarController(statusBarItem)
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(volumeDidMount(_:)),
+            name: NSWorkspace.didMountNotification,
+            object: nil
+        )
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
-        // Insert code here to tear down your application
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }
 
+    @objc func volumeDidMount(_ notification: Notification) {
+        guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
+        guard Forter.canRunOnVolume(volume: volumeURL) else { return }
+
+        let volumeName = volumeURL.lastPathComponent
+        let alert = NSAlert()
+        alert.messageText = "Drive Mounted: \(volumeName)"
+        alert.informativeText = "Would you like to run Strawberry on \"\(volumeName)\"?"
+        alert.addButton(withTitle: "Run")
+        alert.addButton(withTitle: "Skip")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            Forter.runOnVolume(volume: volumeURL)
+            Forter.showInFinder(url: volumeURL)
+        }
+    }
+
     // Menubar Actions
     @objc func organizeAllVolumes(sender: NSStatusItem) {
         Forter.runOnAllVolumes()
     }
-    
-    @objc func runOnDirectory(_ sender: Any) {
-        var fileUrl: URL?
 
+    @objc func runOnDrive(_ sender: NSMenuItem) {
+        guard let volumeURL = sender.representedObject as? URL else { return }
+        Forter.runOnVolume(volume: volumeURL)
+        Forter.showInFinder(url: volumeURL)
+    }
+
+    @objc func runOnFolder(_ sender: Any) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        if panel.runModal() == .OK {
-            fileUrl = panel.url
-        }
-        
-        print(fileUrl?.absoluteString ?? "No file path")
-        
-        if let fileUrlUnwrapped = fileUrl {
-            Forter.runOnDirectory(directoryUrl: fileUrlUnwrapped)
-            Forter.showInFinder(url: fileUrlUnwrapped)
-        }
+        guard panel.runModal() == .OK, let folderUrl = panel.url else { return }
+
+        Forter.runOnDirectory(directoryUrl: folderUrl)
+        Forter.showInFinder(url: folderUrl)
     }
-    
+
     @objc func quit(_ sender: Any) {
         NSApp.terminate(nil)
     }
 }
-
