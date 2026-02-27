@@ -3,22 +3,23 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 55;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		AB2647A927933749008DA1DF /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2647A827933749008DA1DF /* MenuBarController.swift */; };
+		AB78E7382DE270FD00A4A641 /* DriveMount.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB78E7372DE270FD00A4A641 /* DriveMount.swift */; };
 		ABA4A851279C96B100B913E5 /* USBWatcherHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABA4A850279C96B100B913E5 /* USBWatcherHandler.swift */; };
 		ABCC2924279B178400F11B16 /* USBWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCC2923279B178400F11B16 /* USBWatcher.swift */; };
 		B8525339277C1D7400EB03EC /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B8525338277C1D7400EB03EC /* Main.storyboard */; };
 		B8648628277BB930006E1A64 /* logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8648627277BB92F006E1A64 /* logger.swift */; };
 		B892B38C27782CD200049C74 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B892B38B27782CD200049C74 /* AppDelegate.swift */; };
 		B892B38E27782CD300049C74 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B892B38D27782CD300049C74 /* Assets.xcassets */; };
-		B8FC27892779657C00CE148A /* Forter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC27882779657C00CE148A /* Forter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		AB2647A827933749008DA1DF /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		AB78E7372DE270FD00A4A641 /* DriveMount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveMount.swift; sourceTree = "<group>"; };
 		ABA4A850279C96B100B913E5 /* USBWatcherHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBWatcherHandler.swift; sourceTree = "<group>"; };
 		ABCC2923279B178400F11B16 /* USBWatcher.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = USBWatcher.swift; sourceTree = "<group>"; };
 		B8525338277C1D7400EB03EC /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
@@ -28,8 +29,11 @@
 		B892B38B27782CD200049C74 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B892B38D27782CD300049C74 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B892B39227782CD300049C74 /* Strawberry.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Strawberry.entitlements; sourceTree = "<group>"; };
-		B8FC27882779657C00CE148A /* Forter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Forter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AB78E7362DE2709000A4A641 /* lib */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = lib; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B892B38527782CD200049C74 /* Frameworks */ = {
@@ -61,16 +65,17 @@
 		B892B38A27782CD200049C74 /* Strawberry */ = {
 			isa = PBXGroup;
 			children = (
+				AB78E7362DE2709000A4A641 /* lib */,
 				B8525370277D610400EB03EC /* Info.plist */,
 				B892B38D27782CD300049C74 /* Assets.xcassets */,
 				B8525338277C1D7400EB03EC /* Main.storyboard */,
 				B892B39227782CD300049C74 /* Strawberry.entitlements */,
 				B892B38B27782CD200049C74 /* AppDelegate.swift */,
-				B8FC27882779657C00CE148A /* Forter.swift */,
 				B8648627277BB92F006E1A64 /* logger.swift */,
 				AB2647A827933749008DA1DF /* MenuBarController.swift */,
 				ABCC2923279B178400F11B16 /* USBWatcher.swift */,
 				ABA4A850279C96B100B913E5 /* USBWatcherHandler.swift */,
+				AB78E7372DE270FD00A4A641 /* DriveMount.swift */,
 			);
 			path = Strawberry;
 			sourceTree = "<group>";
@@ -89,6 +94,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AB78E7362DE2709000A4A641 /* lib */,
 			);
 			name = Strawberry;
 			productName = Strawberry;
@@ -146,10 +154,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				ABA4A851279C96B100B913E5 /* USBWatcherHandler.swift in Sources */,
-				B8FC27892779657C00CE148A /* Forter.swift in Sources */,
 				B892B38C27782CD200049C74 /* AppDelegate.swift in Sources */,
 				B8648628277BB930006E1A64 /* logger.swift in Sources */,
 				AB2647A927933749008DA1DF /* MenuBarController.swift in Sources */,
+				AB78E7382DE270FD00A4A641 /* DriveMount.swift in Sources */,
 				ABCC2924279B178400F11B16 /* USBWatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
