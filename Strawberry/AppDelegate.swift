@@ -17,6 +17,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         menuBarController = MenuBarController(statusBarItem)
 
+        AutoSyncManager.shared.onSyncStateChanged = { [weak self] in
+            guard let self = self, let controller = self.menuBarController else { return }
+            if AutoSyncManager.shared.isSyncing {
+                controller.startSyncAnimation()
+            } else {
+                controller.stopSyncAnimation()
+            }
+        }
+
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
             selector: #selector(volumeDidMount(_:)),
@@ -35,6 +44,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func volumeDidMount(_ notification: Notification) {
         guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
+
+        // Trigger autosync for any configs whose destination is on this volume
+        AutoSyncManager.shared.checkAndSyncForMountedVolume(volumeURL)
+
         guard Forter.canRunOnVolume(volume: volumeURL) else { return }
 
         let volumeName = volumeURL.lastPathComponent
@@ -50,7 +63,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // Menubar Actions
+    // MARK: - Menubar Actions
+
     @objc func organizeAllVolumes(sender: NSStatusItem) {
         Forter.runOnAllVolumes()
     }
@@ -70,6 +84,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         Forter.runOnDirectory(directoryUrl: folderUrl)
         Forter.showInFinder(url: folderUrl)
+    }
+
+    // MARK: - Autosync Actions
+
+    @objc func addAutoSync(_ sender: Any) {
+        let sourcePanel = NSOpenPanel()
+        sourcePanel.title = "Select Source Folder to Sync"
+        sourcePanel.prompt = "Select Source"
+        sourcePanel.allowsMultipleSelection = false
+        sourcePanel.canChooseDirectories = true
+        sourcePanel.canChooseFiles = false
+        guard sourcePanel.runModal() == .OK, let sourceURL = sourcePanel.url else { return }
+
+        let destPanel = NSOpenPanel()
+        destPanel.title = "Select Destination Folder"
+        destPanel.prompt = "Set Destination"
+        destPanel.allowsMultipleSelection = false
+        destPanel.canChooseDirectories = true
+        destPanel.canChooseFiles = false
+        destPanel.canCreateDirectories = true
+        guard destPanel.runModal() == .OK, let destURL = destPanel.url else { return }
+
+        AutoSyncStore.shared.add(source: sourceURL, destination: destURL)
+    }
+
+    @objc func toggleAutoSync(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID else { return }
+        let current = AutoSyncStore.shared.configs.first(where: { $0.id == id })
+        AutoSyncStore.shared.setEnabled(!(current?.isEnabled ?? true), for: id)
+    }
+
+    @objc func deleteAutoSync(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID else { return }
+        AutoSyncStore.shared.delete(id: id)
     }
 
     @objc func quit(_ sender: Any) {
