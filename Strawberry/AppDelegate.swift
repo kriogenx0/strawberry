@@ -20,10 +20,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AutoSyncManager.shared.onSyncStateChanged = { [weak self] in
             guard let self = self, let controller = self.menuBarController else { return }
             if AutoSyncManager.shared.isSyncing {
+                TransferWindowController.shared.clearAndShow()
                 controller.startSyncAnimation()
             } else {
                 controller.stopSyncAnimation()
             }
+        }
+
+        AutoSyncManager.shared.onOutputReceived = { text in
+            TransferWindowController.shared.append(text)
         }
 
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -118,6 +123,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func deleteAutoSync(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? UUID else { return }
         AutoSyncStore.shared.delete(id: id)
+    }
+
+    @objc func showTransfer(_ sender: Any) {
+        TransferWindowController.shared.showWindow(nil)
+        TransferWindowController.shared.window?.orderFrontRegardless()
     }
 
     @objc func quit(_ sender: Any) {

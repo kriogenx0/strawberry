@@ -78,6 +78,15 @@ class MenuBarController: NSObject, NSMenuDelegate {
         // Autosync section
         statusBarMenu.addItem(NSMenuItem.separator())
 
+        if AutoSyncManager.shared.hasTransferLog {
+            let title = AutoSyncManager.shared.isSyncing ? "Show Transfer..." : "Show Last Transfer..."
+            statusBarMenu.addItem(
+                withTitle: title,
+                action: #selector(AppDelegate.showTransfer(_:)),
+                keyEquivalent: ""
+            )
+        }
+
         let autoSyncConfigs = AutoSyncStore.shared.configs
         for config in autoSyncConfigs {
             let item = NSMenuItem(title: config.displayName, action: nil, keyEquivalent: "")
@@ -155,9 +164,9 @@ class MenuBarController: NSObject, NSMenuDelegate {
 
         let rotated = NSImage(size: size, flipped: false) { _ in
             let transform = NSAffineTransform()
-            transform.translateXBy(size.width / 2, yBy: size.height / 2)
-            transform.rotateByDegrees(self.syncAnimationAngle)
-            transform.translateXBy(-size.width / 2, yBy: -size.height / 2)
+            transform.translateX(by: size.width / 2, yBy: size.height / 2)
+            transform.rotate(byDegrees: self.syncAnimationAngle)
+            transform.translateX(by: -size.width / 2, yBy: -size.height / 2)
             transform.concat()
             base.draw(in: NSRect(origin: .zero, size: size))
             return true
