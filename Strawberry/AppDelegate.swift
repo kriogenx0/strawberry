@@ -50,8 +50,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func volumeDidMount(_ notification: Notification) {
         guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
 
-        // Trigger autosync for any configs whose destination is on this volume
         AutoSyncManager.shared.checkAndSyncForMountedVolume(volumeURL)
+
+        // Skip manual prompt if autosync is configured
+        let hasAutoSync = AutoSyncStore.shared.config?.isEnabled == true
+        guard !hasAutoSync else { return }
 
         guard Forter.canRunOnVolume(volume: volumeURL) else { return }
 
@@ -94,13 +97,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Autosync Actions
 
     @objc func addAutoSync(_ sender: Any) {
-        let sourcePanel = NSOpenPanel()
-        sourcePanel.title = "Select Source Folder to Sync"
-        sourcePanel.prompt = "Select Source"
-        sourcePanel.allowsMultipleSelection = false
-        sourcePanel.canChooseDirectories = true
-        sourcePanel.canChooseFiles = false
-        guard sourcePanel.runModal() == .OK, let sourceURL = sourcePanel.url else { return }
+        let info = NSAlert()
+        info.messageText = "Set Up Autosync"
+        info.informativeText = "Autosync will automatically organize and sync any drive mounted with a DCIM folder to the selected folder."
+        info.addButton(withTitle: "Choose Folder...")
+        info.addButton(withTitle: "Cancel")
+        guard info.runModal() == .alertFirstButtonReturn else { return }
 
         let destPanel = NSOpenPanel()
         destPanel.title = "Select Destination Folder"
@@ -111,18 +113,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         destPanel.canCreateDirectories = true
         guard destPanel.runModal() == .OK, let destURL = destPanel.url else { return }
 
-        AutoSyncStore.shared.add(source: sourceURL, destination: destURL)
+        AutoSyncStore.shared.set(destination: destURL)
     }
 
-    @objc func toggleAutoSync(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? UUID else { return }
-        let current = AutoSyncStore.shared.configs.first(where: { $0.id == id })
-        AutoSyncStore.shared.setEnabled(!(current?.isEnabled ?? true), for: id)
+    @objc func toggleAutoSync(_ sender: Any) {
+        let current = AutoSyncStore.shared.config?.isEnabled ?? false
+        AutoSyncStore.shared.setEnabled(!current)
     }
 
-    @objc func deleteAutoSync(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? UUID else { return }
-        AutoSyncStore.shared.delete(id: id)
+    @objc func deleteAutoSync(_ sender: Any) {
+        AutoSyncStore.shared.remove()
     }
 
     @objc func showTransfer(_ sender: Any) {

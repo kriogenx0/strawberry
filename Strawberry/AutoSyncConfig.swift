@@ -5,59 +5,51 @@
 
 import Foundation
 
-struct AutoSyncConfig: Codable, Identifiable {
-    let id: UUID
-    var sourceURL: URL
+struct AutoSyncConfig: Codable {
     var destinationURL: URL
     var isEnabled: Bool
 
-    init(id: UUID = UUID(), sourceURL: URL, destinationURL: URL, isEnabled: Bool = true) {
-        self.id = id
-        self.sourceURL = sourceURL
+    init(destinationURL: URL, isEnabled: Bool = true) {
         self.destinationURL = destinationURL
         self.isEnabled = isEnabled
     }
 
     var displayName: String {
-        return sourceURL.lastPathComponent
+        return destinationURL.lastPathComponent
     }
 }
 
 class AutoSyncStore {
     static let shared = AutoSyncStore()
 
-    private let userDefaultsKey = "autoSyncConfigs"
+    private let userDefaultsKey = "autoSyncDestination"
 
-    var configs: [AutoSyncConfig] {
+    var config: AutoSyncConfig? {
         get {
             guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-                  let decoded = try? JSONDecoder().decode([AutoSyncConfig].self, from: data) else {
-                return []
+                  let decoded = try? JSONDecoder().decode(AutoSyncConfig.self, from: data) else {
+                return nil
             }
             return decoded
         }
         set {
-            if let data = try? JSONEncoder().encode(newValue) {
+            if let value = newValue, let data = try? JSONEncoder().encode(value) {
                 UserDefaults.standard.set(data, forKey: userDefaultsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: userDefaultsKey)
             }
         }
     }
 
-    func add(source: URL, destination: URL) {
-        var current = configs
-        current.append(AutoSyncConfig(sourceURL: source, destinationURL: destination))
-        configs = current
+    func set(destination: URL) {
+        config = AutoSyncConfig(destinationURL: destination)
     }
 
-    func delete(id: UUID) {
-        configs = configs.filter { $0.id != id }
+    func remove() {
+        config = nil
     }
 
-    func setEnabled(_ enabled: Bool, for id: UUID) {
-        var current = configs
-        if let index = current.firstIndex(where: { $0.id == id }) {
-            current[index].isEnabled = enabled
-        }
-        configs = current
+    func setEnabled(_ enabled: Bool) {
+        config?.isEnabled = enabled
     }
 }

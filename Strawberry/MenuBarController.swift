@@ -87,10 +87,9 @@ class MenuBarController: NSObject, NSMenuDelegate {
             )
         }
 
-        let autoSyncConfigs = AutoSyncStore.shared.configs
-        for config in autoSyncConfigs {
+        if let config = AutoSyncStore.shared.config {
             let item = NSMenuItem(title: config.displayName, action: nil, keyEquivalent: "")
-            item.state = .on  // checkmark to indicate this folder is in autosync
+            item.state = .on
 
             let settingsMenu = NSMenu()
 
@@ -100,26 +99,24 @@ class MenuBarController: NSObject, NSMenuDelegate {
                 keyEquivalent: ""
             )
             toggleItem.state = config.isEnabled ? .on : .off
-            toggleItem.representedObject = config.id
             settingsMenu.addItem(toggleItem)
 
             let deleteItem = NSMenuItem(
-                title: "Delete Autosync",
+                title: "Remove Autosync",
                 action: #selector(AppDelegate.deleteAutoSync(_:)),
                 keyEquivalent: ""
             )
-            deleteItem.representedObject = config.id
             settingsMenu.addItem(deleteItem)
 
             item.submenu = settingsMenu
             statusBarMenu.addItem(item)
+        } else {
+            statusBarMenu.addItem(
+                withTitle: "Add Autosync...",
+                action: #selector(AppDelegate.addAutoSync(_:)),
+                keyEquivalent: ""
+            )
         }
-
-        statusBarMenu.addItem(
-            withTitle: "Add Autosync...",
-            action: #selector(AppDelegate.addAutoSync(_:)),
-            keyEquivalent: ""
-        )
 
         statusBarMenu.addItem(NSMenuItem.separator())
 

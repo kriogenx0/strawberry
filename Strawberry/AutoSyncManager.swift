@@ -15,14 +15,13 @@ class AutoSyncManager {
     var onSyncStateChanged: (() -> Void)?
     var onOutputReceived: ((String) -> Void)?
 
-    /// Called when a volume mounts. Runs rsync for any enabled autosync configs
-    /// whose destination folder lives on that volume.
+    /// Called when a volume mounts. If autosync is configured and the volume has a DCIM
+    /// folder, organizes it then rsyncs to the destination.
     func checkAndSyncForMountedVolume(_ volumeURL: URL) {
-        let enabledConfigs = AutoSyncStore.shared.configs.filter { $0.isEnabled }
-        let relevant = enabledConfigs.filter { config in
-            config.destinationURL.path.hasPrefix(volumeURL.path)
-        }
-        guard !relevant.isEmpty else { return }
+        guard let config = AutoSyncStore.shared.config, config.isEnabled else { return }
+        guard Forter.canRunOnVolume(volume: volumeURL) else { return }
+
+        let sourceURL = volumeURL.appendingPathComponent("DCIM", isDirectory: true)
 
         DispatchQueue.main.async {
             self.transferLog = ""
@@ -31,9 +30,8 @@ class AutoSyncManager {
         }
 
         DispatchQueue.global(qos: .utility).async {
-            for config in relevant {
-                self.runRsync(source: config.sourceURL, destination: config.destinationURL)
-            }
+            Forter.runOnVolume(volume: volumeURL)
+            self.runRsync(source: sourceURL, destination: config.destinationURL)
             DispatchQueue.main.async {
                 self.isSyncing = false
                 self.onSyncStateChanged?()
