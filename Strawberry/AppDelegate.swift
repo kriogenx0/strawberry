@@ -125,6 +125,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AutoSyncStore.shared.remove()
     }
 
+    @objc func changeAutoSyncDestination(_ sender: Any) {
+        let destPanel = NSOpenPanel()
+        destPanel.title = "Select Destination Folder"
+        destPanel.prompt = "Set Destination"
+        destPanel.allowsMultipleSelection = false
+        destPanel.canChooseDirectories = true
+        destPanel.canChooseFiles = false
+        destPanel.canCreateDirectories = true
+        guard destPanel.runModal() == .OK, let destURL = destPanel.url else { return }
+        AutoSyncStore.shared.set(destination: destURL)
+    }
+
     @objc func showTransfer(_ sender: Any) {
         TransferWindowController.shared.showWindow(nil)
         TransferWindowController.shared.window?.orderFrontRegardless()

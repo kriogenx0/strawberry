@@ -88,10 +88,18 @@ class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         if let config = AutoSyncStore.shared.config {
-            let item = NSMenuItem(title: config.displayName, action: nil, keyEquivalent: "")
-            item.state = .on
+            let item = NSMenuItem(title: "AutoSync", action: nil, keyEquivalent: "")
 
             let settingsMenu = NSMenu()
+
+            let labelItem = NSMenuItem(title: "Mounted drives will sync to:", action: nil, keyEquivalent: "")
+            labelItem.isEnabled = false
+            settingsMenu.addItem(labelItem)
+
+            let folderItem = NSMenuItem(title: config.displayName, action: #selector(AppDelegate.changeAutoSyncDestination(_:)), keyEquivalent: "")
+            settingsMenu.addItem(folderItem)
+
+            settingsMenu.addItem(NSMenuItem.separator())
 
             let toggleItem = NSMenuItem(
                 title: config.isEnabled ? "Enabled" : "Enable",
