@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/scripts/claude/post-turn.sh\"",
+            "timeout": 600,
+            "statusMessage": "Running tests + make dev…"
+          }
+        ]
+      }
+    ]
+  }
+}

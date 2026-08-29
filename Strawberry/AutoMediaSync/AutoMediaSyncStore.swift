@@ -1,11 +1,14 @@
 //
-//  AutoSyncConfig.swift
+//  AutoMediaSyncStore.swift
 //  Strawberry
+//
+//  Persistence for Auto Media Sync: a single destination folder that every
+//  mounted DCIM card is organized into and copied to. Distinct from Sync Rules.
 //
 
 import Foundation
 
-struct AutoSyncConfig: Codable {
+struct AutoMediaSyncConfig: Codable {
     var destinationURL: URL
     var isEnabled: Bool
 
@@ -15,19 +18,20 @@ struct AutoSyncConfig: Codable {
     }
 
     var displayName: String {
-        return destinationURL.lastPathComponent
+        destinationURL.lastPathComponent
     }
 }
 
-class AutoSyncStore {
-    static let shared = AutoSyncStore()
+final class AutoMediaSyncStore {
+    static let shared = AutoMediaSyncStore()
 
+    // Same key the pre-merge "AutoSync" used, so an existing setting keeps working.
     private let userDefaultsKey = "autoSyncDestination"
 
-    var config: AutoSyncConfig? {
+    var config: AutoMediaSyncConfig? {
         get {
             guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-                  let decoded = try? JSONDecoder().decode(AutoSyncConfig.self, from: data) else {
+                  let decoded = try? JSONDecoder().decode(AutoMediaSyncConfig.self, from: data) else {
                 return nil
             }
             return decoded
@@ -42,7 +46,7 @@ class AutoSyncStore {
     }
 
     func set(destination: URL) {
-        config = AutoSyncConfig(destinationURL: destination)
+        config = AutoMediaSyncConfig(destinationURL: destination)
     }
 
     func remove() {

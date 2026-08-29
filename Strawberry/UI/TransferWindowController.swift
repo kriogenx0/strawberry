@@ -2,10 +2,13 @@
 //  TransferWindowController.swift
 //  Strawberry
 //
+//  Streams the Auto Media Sync rsync output into a plain scrolling text window.
+//  Separate from the Sync Rules "Live Sync Log" (which is rule/record-bound).
+//
 
 import Cocoa
 
-class TransferWindowController: NSWindowController {
+final class TransferWindowController: NSWindowController {
     static let shared = TransferWindowController()
 
     private var textView: NSTextView!
@@ -17,7 +20,7 @@ class TransferWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Autosync Transfer"
+        window.title = "Auto Media Sync"
         window.center()
         window.isReleasedWhenClosed = false
 
