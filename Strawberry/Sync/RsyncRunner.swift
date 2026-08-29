@@ -148,9 +148,7 @@ final class RsyncRunner {
         if o.preallocate && caps.prealloc      { args.append("--preallocate") }
         if o.inPlace                           { args.append("--inplace") }
         if o.stayOnSourceFilesystem { args.append("--one-file-system") }
-        if o.mirrorDelete           { args.append("--delete-during") }
-        if o.removeSourceFiles      { args.append("--remove-source-files") }
-        if let existing = o.existingFiles.flag { args.append(existing) }
+        if let modeFlag = o.mode.rsyncFlag { args.append(modeFlag) }
 
         if o.bandwidthLimitMBps > 0 {
             let v = o.bandwidthLimitMBps
@@ -162,7 +160,17 @@ final class RsyncRunner {
             let trimmed = pattern.trimmingCharacters(in: .whitespaces)
             if !trimmed.isEmpty { args.append("--exclude=\(trimmed)") }
         }
-        args += o.extraArgs.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        for arg in o.extraArgs {
+            let a = arg.trimmingCharacters(in: .whitespaces)
+            if a.isEmpty { continue }
+            // Only Move mode is ever allowed to delete from the source, even if
+            // the user typed a source-removing flag into Extra arguments.
+            if o.mode != .move,
+               a == "--remove-source-files" || a == "--remove-source-dirs" {
+                continue
+            }
+            args.append(a)
+        }
 
         if dryRun { args.append("--dry-run") }
 
@@ -508,7 +516,7 @@ final class RsyncRunner {
             var m = dryRun ? "Dry run — " : ""
             m += "\(filesTransferred) file\(filesTransferred == 1 ? "" : "s") · \(size)"
             if deletedFiles > 0 { m += " · \(deletedFiles) deleted" }
-            if rule.options.removeSourceFiles && !dryRun { m += " · copied files removed from source" }
+            if rule.options.mode == .move && !dryRun { m += " · copied files removed from source" }
             if exitCode == 23 { m += " · some attributes not copied" }
             if exitCode == 24 { m += " · some files vanished" }
             message = m

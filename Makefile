@@ -26,7 +26,10 @@ test:
 		-destination 'platform=macOS' \
 		test
 
+# Kill any running instance, then launch the freshly built app.
 open:
+	-pkill -x "$(SCHEME)" 2>/dev/null || true
+	@sleep 0.5
 	open "$(APP)"
 
 # Production (Release) build.

@@ -108,22 +108,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         let scheduler = Scheduler.shared
 
         // --- Media (photo organizing) -----------------------------------------
-        menu.addItem(actionItem("Organize Media Volumes", #selector(organizeAllVolumes)))
-
-        let runOnDrive = NSMenuItem(title: "Organize a Drive", action: nil, keyEquivalent: "")
-        let driveSub = NSMenu()
-        let runnable = MediaOrganizer.volumesList().filter { MediaOrganizer.canRunOnVolume(volume: $0) }
-        if runnable.isEmpty {
-            driveSub.addItem(disabledItem("No media drives"))
-        } else {
-            for volume in runnable {
-                let item = actionItem(volume.lastPathComponent, #selector(runMediaOnDrive(_:)), represent: volume)
-                driveSub.addItem(item)
-            }
-        }
-        runOnDrive.submenu = driveSub
-        menu.addItem(runOnDrive)
-        menu.addItem(actionItem("Organize a Folder…", #selector(runMediaOnFolder)))
+        menu.addItem(actionItem("Organize Media…", #selector(openOrganizeMedia)))
         menu.addItem(.separator())
 
         // --- Auto Media Sync ----------------------------------------------------
@@ -135,12 +120,21 @@ final class MenuController: NSObject, NSMenuDelegate {
         if let amsConfig = AutoMediaSyncStore.shared.config {
             let item = NSMenuItem(title: "Auto Media Sync", action: nil, keyEquivalent: "")
             let sub = NSMenu()
-            sub.addItem(disabledItem("Copies mounted cards to:"))
-            sub.addItem(actionItem(amsConfig.displayName, #selector(changeAutoMediaSyncDestination)))
+
+            let cards = MediaOrganizer.volumesList().filter { MediaOrganizer.canRunOnVolume(volume: $0) }
+            let fromText = cards.isEmpty
+                ? "any mounted card with a DCIM folder"
+                : cards.map { $0.lastPathComponent }.joined(separator: ", ")
+            sub.addItem(disabledItem("From:  \(fromText)"))
+            sub.addItem(disabledItem("To:      \(amsConfig.destinationURL.path)"))
             sub.addItem(.separator())
+
             let toggle = actionItem(amsConfig.isEnabled ? "Enabled" : "Enable", #selector(toggleAutoMediaSync))
             toggle.state = amsConfig.isEnabled ? .on : .off
             sub.addItem(toggle)
+            sub.addItem(.separator())
+            sub.addItem(actionItem("Change Destination…", #selector(changeAutoMediaSyncDestination)))
+            sub.addItem(actionItem("Reveal Destination in Finder", #selector(revealAutoMediaSyncDestination)))
             sub.addItem(actionItem("Turn Off Auto Media Sync", #selector(removeAutoMediaSync)))
             item.submenu = sub
             menu.addItem(item)
@@ -186,21 +180,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         menu.addItem(actionItem("Sync History…", #selector(showHistory)))
         menu.addItem(.separator())
 
-        let prefs = NSMenu()
-        let login = actionItem("Launch at Login", #selector(toggleLaunchAtLogin))
-        login.state = LoginItem.isEnabled ? .on : .off
-        prefs.addItem(login)
-        let failDialog = actionItem("Show a Dialog When a Sync Fails", #selector(toggleFailureDialog))
-        failDialog.state = cfg.showFailureDialog ? .on : .off
-        prefs.addItem(failDialog)
-        prefs.addItem(.separator())
-        prefs.addItem(disabledItem("rsync: \(cfg.rsyncPath)"))
-        prefs.addItem(actionItem("Choose rsync Binary…", #selector(chooseRsync)))
-        prefs.addItem(.separator())
-        prefs.addItem(actionItem("Reveal Data Folder", #selector(revealDataFolder)))
-        let prefsItem = NSMenuItem(title: "Preferences", action: nil, keyEquivalent: "")
-        prefsItem.submenu = prefs
-        menu.addItem(prefsItem)
+        menu.addItem(actionItem("Preferences…", #selector(openPreferences)))
 
         menu.addItem(.separator())
         menu.addItem(actionItem("Quit Strawberry", #selector(quit)))
@@ -309,24 +289,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // MARK: media actions
 
-    @objc private func organizeAllVolumes() { MediaOrganizer.runOnAllVolumes() }
-
-    @objc private func runMediaOnDrive(_ sender: Any?) {
-        guard let item = sender as? NSMenuItem, let url = item.representedObject as? URL else { return }
-        MediaOrganizer.runOnVolume(volume: url)
-        MediaOrganizer.showInFinder(url: url)
-    }
-
-    @objc private func runMediaOnFolder() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        PanelHelper.activateApp()
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        MediaOrganizer.runOnDirectory(directoryUrl: url)
-        MediaOrganizer.showInFinder(url: url)
-    }
+    @objc private func openOrganizeMedia() { WindowManager.shared.openOrganizeMedia() }
 
     // MARK: Auto Media Sync actions
 
@@ -358,6 +321,10 @@ final class MenuController: NSObject, NSMenuDelegate {
     @objc private func removeAutoMediaSync() {
         AutoMediaSyncStore.shared.remove()
         NotificationCenter.default.post(name: .dsConfigChanged, object: nil)
+    }
+
+    @objc private func revealAutoMediaSyncDestination() {
+        if let url = AutoMediaSyncStore.shared.config?.destinationURL { reveal(url.path) }
     }
 
     @objc private func showAutoMediaSyncTransfer() {
@@ -393,12 +360,8 @@ final class MenuController: NSObject, NSMenuDelegate {
               let name = record.logFileName else { return }
         NSWorkspace.shared.open(Store.shared.logsDir.appendingPathComponent(name))
     }
-    @objc private func revealDataFolder() { NSWorkspace.shared.open(Store.shared.baseDir) }
-    @objc private func quit()          { NSApp.terminate(nil) }
-
-    @objc private func toggleFailureDialog() {
-        Store.shared.mutateConfig { $0.showFailureDialog.toggle() }
-    }
+    @objc private func openPreferences() { WindowManager.shared.openPreferences() }
+    @objc private func quit()            { NSApp.terminate(nil) }
 
     @objc private func syncRuleNow(_ sender: Any?) {
         if let r = rule(from: sender) { Scheduler.shared.triggerManual(ruleID: r.id, dryRun: false) }
@@ -431,20 +394,6 @@ final class MenuController: NSObject, NSMenuDelegate {
         PanelHelper.activateApp()
         if alert.runModal() == .alertFirstButtonReturn {
             Store.shared.deleteRule(id: r.id)
-        }
-    }
-
-    @objc private func toggleLaunchAtLogin() {
-        LoginItem.set(!LoginItem.isEnabled)
-        Store.shared.mutateConfig { $0.launchAtLogin = LoginItem.isEnabled }
-    }
-
-    @objc private func chooseRsync() {
-        let start = (Store.shared.config.rsyncPath as NSString).deletingLastPathComponent
-        if let path = PanelHelper.chooseFile(title: "Select the rsync executable (rsync 3.x recommended)",
-                                             start: start.isEmpty ? "/opt/homebrew/bin" : start) {
-            RsyncCaps.invalidate()
-            Store.shared.mutateConfig { $0.rsyncPath = path }
         }
     }
 }

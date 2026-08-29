@@ -23,6 +23,9 @@ final class TransferWindowController: NSWindowController {
         window.title = "Auto Media Sync"
         window.center()
         window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        window.hidesOnDeactivate = false
 
         super.init(window: window)
         setupTextView()

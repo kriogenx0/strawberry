@@ -5,7 +5,10 @@
 //  Created by Alex Vaos on 12/26/21.
 //
 //  Sorts a camera card's DCIM folder in place into Year / MM-DD / <camera-folder>
-//  buckets, moving each file by its earliest of (created, modified) date.
+//  buckets. Files in a camera folder are grouped into "events": a new event
+//  (and folder) starts only when the gap to the previous shot exceeds the
+//  configured Media Event Gap, so a shoot that runs past midnight stays in one
+//  folder dated by when it started.
 //
 
 import Foundation
@@ -41,73 +44,89 @@ enum MediaOrganizer {
         return "\(year)/\(monthDay)/\(formatFolder)"
     }
 
+    /// For a list of timestamps **sorted ascending**, returns the "event start"
+    /// timestamp each item belongs to: a new event begins whenever the gap from
+    /// the previous item exceeds `gap` seconds. `gap <= 0` disables grouping, so
+    /// each item keeps its own timestamp (one folder per calendar day). Pure.
+    static func eventStartDates(forSorted dates: [Date], gap: TimeInterval) -> [Date] {
+        guard gap > 0, var anchor = dates.first else { return dates }
+        var previous = anchor
+        var starts: [Date] = []
+        starts.reserveCapacity(dates.count)
+        for (i, date) in dates.enumerated() {
+            if i > 0, date.timeIntervalSince(previous) > gap { anchor = date }
+            starts.append(anchor)
+            previous = date
+        }
+        return starts
+    }
+
     static func runOnDirectory(directoryUrl: URL) {
         log.info("runOnDirectory \(directoryUrl)")
 
-        let firstDirFiles: [String]
+        let gap = max(0, Store.shared.config.mediaEventGapHours) * 3600
+
+        let topLevel: [String]
         do {
-            firstDirFiles = try FileManager.default.contentsOfDirectory(atPath: directoryUrl.relativePath)
+            topLevel = try FileManager.default.contentsOfDirectory(atPath: directoryUrl.relativePath)
         } catch {
             log.critical("Cannot get directory contents. \(error.localizedDescription)")
             return
         }
-        log.info("Directory files: \(firstDirFiles.count)")
+        log.info("Directory entries: \(topLevel.count)")
 
+        struct Item { let name: String; let url: URL; let isVideo: Bool; let date: Date }
         var filesOrganized = 0
 
-        for secondFolderName in firstDirFiles {
-            let secondFolderUrl = directoryUrl.appendingPathComponent(secondFolderName)
+        for folderName in topLevel {
+            let folderUrl = directoryUrl.appendingPathComponent(folderName)
 
             var isDirectory = ObjCBool(false)
-            FileManager.default.fileExists(atPath: secondFolderUrl.relativePath, isDirectory: &isDirectory)
+            FileManager.default.fileExists(atPath: folderUrl.relativePath, isDirectory: &isDirectory)
             if !isDirectory.boolValue { continue }
 
             // Skip folders that already look like a Year bucket we created.
-            let range = NSRange(location: 0, length: secondFolderName.utf16.count)
-            if !yearRegex.matches(in: secondFolderName, options: [], range: range).isEmpty { continue }
+            let range = NSRange(location: 0, length: folderName.utf16.count)
+            if !yearRegex.matches(in: folderName, options: [], range: range).isEmpty { continue }
 
-            log.info("Organizing folder \(secondFolderUrl.relativePath)")
-
-            let secondFolderFiles: [String]
+            let names: [String]
             do {
-                secondFolderFiles = try FileManager.default.contentsOfDirectory(atPath: secondFolderUrl.relativePath)
+                names = try FileManager.default.contentsOfDirectory(atPath: folderUrl.relativePath)
             } catch {
-                log.critical("Cannot get directory contents of \(secondFolderName). \(error.localizedDescription)")
+                log.critical("Cannot get directory contents of \(folderName). \(error.localizedDescription)")
                 continue
             }
 
-            for fileName in secondFolderFiles {
-                let fileUrl = secondFolderUrl.appendingPathComponent(fileName)
+            // Collect this folder's files with timestamps, then order by time so
+            // consecutive shots can be split into events by the gap between them.
+            var items: [Item] = []
+            for fileName in names {
+                let fileUrl = folderUrl.appendingPathComponent(fileName)
 
                 var fileIsDirectory = ObjCBool(false)
-                let fileExists = FileManager.default.fileExists(atPath: fileUrl.relativePath, isDirectory: &fileIsDirectory)
-                if !fileExists {
-                    log.debug("File does not exist: \(fileUrl.relativePath)")
+                guard FileManager.default.fileExists(atPath: fileUrl.relativePath, isDirectory: &fileIsDirectory),
+                      !fileIsDirectory.boolValue else { continue }
+
+                guard let attr = try? FileManager.default.attributesOfItem(atPath: fileUrl.relativePath),
+                      let modified = attr[.modificationDate] as? Date,
+                      let created = attr[.creationDate] as? Date else {
+                    log.info("Could not get attributes for file \(folderName)/\(fileName)")
                     continue
                 }
-                if fileIsDirectory.boolValue {
-                    log.debug("Skipping folder: \(fileName)")
-                    continue
-                }
+                items.append(Item(name: fileName, url: fileUrl,
+                                  isVideo: isVideoFile(fileUrl.pathExtension),
+                                  date: min(created, modified)))
+            }
+            guard !items.isEmpty else { continue }
 
-                let fileLongName = "\(secondFolderName)/\(fileName)"
-                log.info("Organizing file: \(fileLongName)")
+            items.sort { $0.date < $1.date }
+            let eventStarts = eventStartDates(forSorted: items.map(\.date), gap: gap)
+            log.info("Organizing \(items.count) file(s) in \(folderName)")
 
-                let attr: [FileAttributeKey: Any]
-                do {
-                    attr = try FileManager.default.attributesOfItem(atPath: fileUrl.relativePath)
-                } catch {
-                    log.info("Could not get attributes for file \(fileLongName): \(error.localizedDescription)")
-                    continue
-                }
-
-                let modifiedDate = attr[.modificationDate] as! Date
-                let createdDate = attr[.creationDate] as! Date
-                let date = createdDate < modifiedDate ? createdDate : modifiedDate
-
-                let relative = relativeDestination(for: date,
-                                                   sourceFolder: secondFolderName,
-                                                   isVideo: isVideoFile(fileUrl.pathExtension))
+            for (item, eventStart) in zip(items, eventStarts) {
+                let relative = relativeDestination(for: eventStart,
+                                                   sourceFolder: folderName,
+                                                   isVideo: item.isVideo)
                 let destinationDirUrl = directoryUrl.appendingPathComponent(relative, isDirectory: true)
 
                 do {
@@ -117,15 +136,15 @@ enum MediaOrganizer {
                     return
                 }
 
-                let destinationFileUrl = destinationDirUrl.appendingPathComponent(fileName, isDirectory: false)
+                let destinationFileUrl = destinationDirUrl.appendingPathComponent(item.name, isDirectory: false)
                 do {
-                    try FileManager.default.moveItem(at: fileUrl, to: destinationFileUrl)
+                    try FileManager.default.moveItem(at: item.url, to: destinationFileUrl)
                 } catch {
-                    log.error("Could not move file: \(fileUrl.relativePath)")
+                    log.error("Could not move file: \(item.url.relativePath)")
                     continue
                 }
 
-                log.info("Moved file: \(fileUrl.relativePath) to \(destinationFileUrl.relativePath)")
+                log.info("Moved file: \(item.url.relativePath) to \(destinationFileUrl.relativePath)")
                 filesOrganized += 1
             }
         }

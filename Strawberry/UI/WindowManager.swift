@@ -9,8 +9,45 @@ final class WindowManager {
     private var editor: NSWindowController?
     private var history: NSWindowController?
     private var liveLog: NSWindowController?
+    private var organize: NSWindowController?
+    private var preferences: NSWindowController?
 
     private init() {}
+
+    func openPreferences() {
+        if let preferences {
+            present(preferences)
+            return
+        }
+        let window = NSWindow(contentViewController: NSHostingController(rootView: PreferencesView()))
+        window.title = "Preferences"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.center()
+
+        let controller = NSWindowController(window: window)
+        preferences = controller
+        present(controller)
+    }
+
+    func openOrganizeMedia() {
+        organize?.close()
+
+        let view = OrganizeMediaView(onClose: { [weak self] in
+            self?.organize?.close()
+            self?.organize = nil
+        })
+
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        window.title = "Organize Media"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.center()
+
+        let controller = NSWindowController(window: window)
+        organize = controller
+        present(controller)
+    }
 
     func openEditor(rule: SyncRule?) {
         editor?.close()
@@ -81,7 +118,15 @@ final class WindowManager {
 
     private func present(_ controller: NSWindowController) {
         PanelHelper.activateApp()
+        if let window = controller.window {
+            // Menu-bar app: keep these panels above other apps' windows and
+            // follow the user across Spaces / into full-screen.
+            window.level = .floating
+            window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+            window.hidesOnDeactivate = false
+        }
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
+        controller.window?.orderFrontRegardless()
     }
 }

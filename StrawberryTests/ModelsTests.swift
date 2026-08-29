@@ -60,21 +60,33 @@ final class SyncIntervalTests: XCTestCase {
     }
 }
 
-final class ExistingFilePolicyTests: XCTestCase {
+final class SyncModeTests: XCTestCase {
 
     func testRsyncFlagMapping() {
-        XCTAssertNil(ExistingFilePolicy.overwrite.flag)
-        XCTAssertEqual(ExistingFilePolicy.update.flag, "--update")
-        XCTAssertEqual(ExistingFilePolicy.addOnly.flag, "--ignore-existing")
+        XCTAssertNil(SyncMode.append.rsyncFlag)
+        XCTAssertEqual(SyncMode.mirror.rsyncFlag, "--delete-during")
+        XCTAssertEqual(SyncMode.move.rsyncFlag, "--remove-source-files")
     }
 
-    func testOverwriteRawValueIsLegacyOverride() {
-        XCTAssertEqual(ExistingFilePolicy.overwrite.rawValue, "override")
+    func testDecodingUnknownRawValueFallsBackToAppend() throws {
+        let data = Data("\"sideways\"".utf8)
+        XCTAssertEqual(try JSONDecoder().decode(SyncMode.self, from: data), .append)
     }
 
-    func testDecodingUnknownRawValueFallsBackToOverwrite() throws {
-        let data = Data("\"clobber\"".utf8)
-        XCTAssertEqual(try JSONDecoder().decode(ExistingFilePolicy.self, from: data), .overwrite)
+    func testDecodingKnownRawValueRoundTrips() throws {
+        XCTAssertEqual(try JSONDecoder().decode(SyncMode.self, from: Data("\"mirror\"".utf8)), .mirror)
+    }
+
+    func testOnlyMoveTouchesTheSource() {
+        XCTAssertTrue(SyncMode.move.sourceEffect.lowercased().contains("deleted"))
+        XCTAssertEqual(SyncMode.append.sourceEffect, "Left as-is.")
+        XCTAssertEqual(SyncMode.mirror.sourceEffect, "Left as-is.")
+    }
+
+    func testOnlyMirrorDeletesAtTheDestination() {
+        XCTAssertTrue(SyncMode.mirror.destinationEffect.lowercased().contains("deleted"))
+        XCTAssertTrue(SyncMode.append.destinationEffect.lowercased().contains("kept"))
+        XCTAssertTrue(SyncMode.move.destinationEffect.lowercased().contains("nothing is deleted"))
     }
 }
 
@@ -82,9 +94,7 @@ final class RsyncOptionsTests: XCTestCase {
 
     func testDefaults() {
         let opts = RsyncOptions()
-        XCTAssertFalse(opts.mirrorDelete)
-        XCTAssertFalse(opts.removeSourceFiles)
-        XCTAssertEqual(opts.existingFiles, .overwrite)
+        XCTAssertEqual(opts.mode, .append)
         XCTAssertTrue(opts.wholeFile)
         XCTAssertTrue(opts.preservePermissions)
         XCTAssertEqual(opts.bandwidthLimitMBps, 0)
@@ -92,21 +102,46 @@ final class RsyncOptionsTests: XCTestCase {
     }
 
     func testDecodingPartialJSONKeepsDefaultsForMissingKeys() throws {
-        let data = Data(#"{"mirrorDelete": true}"#.utf8)
+        let data = Data(#"{"mode":"mirror"}"#.utf8)
         let opts = try JSONDecoder().decode(RsyncOptions.self, from: data)
-        XCTAssertTrue(opts.mirrorDelete)
+        XCTAssertEqual(opts.mode, .mirror)
         XCTAssertTrue(opts.wholeFile)                       // default preserved
         XCTAssertEqual(opts.excludes, RsyncOptions.defaultExcludes)
+    }
+
+    func testMigratesLegacyRemoveSourceFilesToMove() throws {
+        let data = Data(#"{"removeSourceFiles": true, "mirrorDelete": true}"#.utf8)
+        let opts = try JSONDecoder().decode(RsyncOptions.self, from: data)
+        XCTAssertEqual(opts.mode, .move)   // move wins over mirror
+    }
+
+    func testMigratesLegacyMirrorDeleteToMirror() throws {
+        let data = Data(#"{"mirrorDelete": true}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(RsyncOptions.self, from: data).mode, .mirror)
+    }
+
+    func testMigratesLegacyPlainRuleToAppend() throws {
+        let data = Data(#"{"wholeFile": false}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(RsyncOptions.self, from: data).mode, .append)
     }
 
     func testEncodeDecodeRoundTrip() throws {
         var opts = RsyncOptions()
         opts.bandwidthLimitMBps = 12.5
-        opts.existingFiles = .addOnly
+        opts.mode = .move
         opts.extraArgs = ["--partial"]
         let data = try JSONEncoder().encode(opts)
         let back = try JSONDecoder().decode(RsyncOptions.self, from: data)
         XCTAssertEqual(back, opts)
+    }
+
+    func testEncodedJSONHasNoLegacyKeys() throws {
+        let data = try JSONEncoder().encode(RsyncOptions())
+        let json = String(decoding: data, as: UTF8.self)
+        XCTAssertFalse(json.contains("mirrorDelete"))
+        XCTAssertFalse(json.contains("removeSourceFiles"))
+        XCTAssertFalse(json.contains("existingFiles"))
+        XCTAssertTrue(json.contains("\"mode\""))
     }
 }
 
@@ -125,7 +160,7 @@ final class SyncRuleTests: XCTestCase {
         XCTAssertEqual(rule.name, "X")
         XCTAssertEqual(rule.interval, .daily)
         XCTAssertTrue(rule.enabled)
-        XCTAssertEqual(rule.options.existingFiles, .overwrite)
+        XCTAssertEqual(rule.options.mode, .append)
     }
 
     func testDecodingEmptyObjectGetsPlaceholderFields() throws {

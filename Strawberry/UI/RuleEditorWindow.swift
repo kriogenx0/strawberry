@@ -8,9 +8,10 @@ struct RuleEditorView: View {
     @State private var interval: SyncInterval
     @State private var enabled: Bool
 
-    @State private var mirrorDelete: Bool
-    @State private var removeSource: Bool
-    @State private var existingFiles: ExistingFilePolicy
+    @State private var mode: SyncMode
+    /// The mode before the current pick — used to revert if a Move confirm is declined.
+    @State private var lastConfirmedMode: SyncMode
+    @State private var showMoveConfirm = false
     @State private var wholeFile: Bool
     @State private var preallocate: Bool
     @State private var inPlace: Bool
@@ -41,9 +42,8 @@ struct RuleEditorView: View {
         _destination = State(initialValue: rule.destination)
         _interval = State(initialValue: rule.interval)
         _enabled = State(initialValue: rule.enabled)
-        _mirrorDelete = State(initialValue: rule.options.mirrorDelete)
-        _removeSource = State(initialValue: rule.options.removeSourceFiles)
-        _existingFiles = State(initialValue: rule.options.existingFiles)
+        _mode = State(initialValue: rule.options.mode)
+        _lastConfirmedMode = State(initialValue: rule.options.mode)
         _wholeFile = State(initialValue: rule.options.wholeFile)
         _preallocate = State(initialValue: rule.options.preallocate)
         _inPlace = State(initialValue: rule.options.inPlace)
@@ -64,27 +64,9 @@ struct RuleEditorView: View {
         RsyncCaps.get(Store.shared.config.rsyncPath).prealloc
     }
 
-    private func confirmMoveMode() {
-        let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = "Turn on Move mode for “\(name.isEmpty ? "this rule" : name)”?"
-        alert.informativeText = """
-        After every sync, files that copied successfully will be DELETED from the source folder
-        (\(source.isEmpty ? "the source" : source)).
-
-        This is not reversible. Files that were skipped or failed to copy are left in place.
-        """
-        alert.addButton(withTitle: "Enable Move Mode")
-        alert.addButton(withTitle: "Cancel")
-        PanelHelper.activateApp()
-        if alert.runModal() != .alertFirstButtonReturn { removeSource = false }
-    }
-
     private var assembled: SyncRule {
         var options = RsyncOptions()
-        options.mirrorDelete = mirrorDelete
-        options.removeSourceFiles = removeSource
-        options.existingFiles = existingFiles
+        options.mode = mode
         options.wholeFile = wholeFile
         options.preallocate = preallocate
         options.inPlace = inPlace
@@ -147,20 +129,35 @@ struct RuleEditorView: View {
                         .frame(maxWidth: 260, alignment: .leading)
                     }
 
-                    labeled("Existing files") {
-                        Picker("", selection: $existingFiles) {
-                            ForEach(ExistingFilePolicy.allCases) { Text($0.title).tag($0) }
+                    labeled("Sync mode") {
+                        Picker("", selection: $mode) {
+                            ForEach(SyncMode.allCases) { Text($0.title).tag($0) }
                         }
                         .labelsHidden()
                         .pickerStyle(.segmented)
-                        .frame(maxWidth: 360, alignment: .leading)
-                        Text(existingFiles.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text("Unchanged files (same size + timestamp) are always skipped, whichever mode you pick.")
+                        .frame(maxWidth: 300, alignment: .leading)
+                        .onChange(of: mode) { newMode in
+                            if newMode == .move {
+                                showMoveConfirm = true
+                            } else {
+                                lastConfirmedMode = newMode
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            effectLine("Source:", mode.sourceEffect, destructive: mode == .move)
+                            effectLine("Destination:", mode.destinationEffect, destructive: mode == .mirror)
+                        }
+
+                        Text("Unchanged files (same size + timestamp) are always skipped; a changed file is always replaced.")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
+                    }
+                    .alert("Use Move mode?", isPresented: $showMoveConfirm) {
+                        Button("Use Move Mode", role: .destructive) { lastConfirmedMode = .move }
+                        Button("Cancel", role: .cancel) { mode = lastConfirmedMode }
+                    } message: {
+                        Text("After every sync, files that copied successfully are DELETED from the source folder. This is not reversible; skipped or failed files are left in place.")
                     }
 
                     Toggle("Rule enabled", isOn: $enabled)
@@ -169,19 +166,6 @@ struct RuleEditorView: View {
                     Text("rsync tuning").font(.headline)
                     Text("Defaults are tuned for spinning-disk to spinning-disk copies.")
                         .font(.caption).foregroundStyle(.secondary)
-
-                    Toggle("Mirror — delete files at the destination that are gone from the source", isOn: $mirrorDelete)
-                        .foregroundStyle(mirrorDelete ? Color.red : Color.primary)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Toggle("Move — delete each file from the source once it's safely copied", isOn: $removeSource)
-                            .foregroundStyle(removeSource ? Color.red : Color.primary)
-                            .onChange(of: removeSource) { on in if on { confirmMoveMode() } }
-                        if removeSource {
-                            Text("⚠️ Irreversible. rsync --remove-source-files deletes originals that copied successfully; skipped or failed files are left alone. Empty folders remain.")
-                                .font(.caption2).foregroundStyle(.red)
-                        }
-                    }
 
                     Toggle("Copy whole files — skip the delta algorithm (recommended disk-to-disk)", isOn: $wholeFile)
                     VStack(alignment: .leading, spacing: 2) {
@@ -259,6 +243,14 @@ struct RuleEditorView: View {
             Text(title).font(.subheadline).foregroundStyle(.secondary)
             content()
         }
+    }
+
+    private func effectLine(_ label: String, _ text: String, destructive: Bool) -> some View {
+        (Text(label).fontWeight(.semibold) + Text(" \(text)"))
+            .font(.callout)
+            .foregroundStyle(destructive ? Color.red : Color.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

@@ -76,59 +76,76 @@ enum SyncInterval: String, Codable, CaseIterable, Identifiable {
 
 // MARK: - rsync options
 
-/// What to do when a file *already exists* at the destination. A per-rule setting.
-enum ExistingFilePolicy: String, Codable, CaseIterable, Identifiable {
-    /// Plain rsync: copy whenever size/mtime differ, so the destination ends up
-    /// identical to the source — even if that replaces a newer file there.
-    case overwrite = "override"
-    /// `--update` / `-u` — replace a file only when the source copy is newer.
-    case update
-    /// `--ignore-existing` — only ever create files that aren't there yet;
-    /// never replace one that already exists.
-    case addOnly
+/// How a Sync Rule reconciles the source and the destination. Unchanged files
+/// (same size + timestamp) are always skipped; a changed file is always replaced.
+enum SyncMode: String, Codable, CaseIterable, Identifiable {
+    /// Copy new and changed files to the destination. Nothing at the destination
+    /// is ever deleted, and the source is left intact. The safe default.
+    case append
+    /// Like Append, but also delete files at the *destination* that are gone
+    /// from the source, so it ends up an exact replica (`rsync --delete`). The
+    /// source is never modified.
+    case mirror
+    /// Copy everything, then delete each file from the source once it is safely
+    /// at the destination (`rsync --remove-source-files`). The destination is
+    /// never pruned. Irreversible on the source.
+    case move
 
     var id: String { rawValue }
 
     /// Short name for a segmented control.
     var title: String {
         switch self {
-        case .overwrite: return "Override"
-        case .update:    return "Update"
-        case .addOnly:   return "Add new only"
+        case .append: return "Append"
+        case .mirror: return "Mirror"
+        case .move:   return "Move"
         }
     }
 
     /// One-line explanation of the selected mode.
     var detail: String {
         switch self {
-        case .overwrite: return "Replace destination files whenever they differ — keeps the destination identical to the source."
-        case .update:    return "Replace a file only when the source copy is newer (rsync --update)."
-        case .addOnly:   return "Only copy files that don’t exist yet; an existing file is never replaced (rsync --ignore-existing)."
+        case .append: return "Copy new and changed files to the destination. Nothing there is deleted; the source is left untouched."
+        case .mirror: return "Make the destination an exact replica of the source — changed files are replaced and destination files missing from the source are deleted. The source is never touched."
+        case .move:   return "Copy everything, then delete each file from the source once it is safely at the destination. The destination is never pruned."
         }
     }
 
-    var flag: String? {
+    /// Terse "what happens to the source folder" line.
+    var sourceEffect: String {
         switch self {
-        case .overwrite: return nil
-        case .update:    return "--update"
-        case .addOnly:   return "--ignore-existing"
+        case .append, .mirror: return "Left as-is."
+        case .move:            return "Files are deleted after they copy successfully."
+        }
+    }
+
+    /// Terse "what happens to the destination folder" line.
+    var destinationEffect: String {
+        switch self {
+        case .append: return "New and changed files are copied in; extra files are kept."
+        case .mirror: return "New and changed files are copied in; files not in the source are deleted."
+        case .move:   return "New and changed files are copied in; nothing is deleted."
+        }
+    }
+
+    /// The extra rsync flag this mode implies, if any.
+    var rsyncFlag: String? {
+        switch self {
+        case .append: return nil
+        case .mirror: return "--delete-during"
+        case .move:   return "--remove-source-files"
         }
     }
 
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
-        self = ExistingFilePolicy(rawValue: raw) ?? .overwrite
+        self = SyncMode(rawValue: raw) ?? .append
     }
 }
 
 struct RsyncOptions: Codable, Equatable {
-    /// `--delete-during` — remove files at the destination that no longer exist in the source.
-    var mirrorDelete: Bool = false
-    /// `--remove-source-files` — delete each source file once it has been copied
-    /// to the destination. Turns the sync into a move. Irreversible.
-    var removeSourceFiles: Bool = false
-    /// How to treat files that already exist at the destination.
-    var existingFiles: ExistingFilePolicy = .overwrite
+    /// Move / Append / Mirror. See `SyncMode`.
+    var mode: SyncMode = .append
     /// `--whole-file` — skip the delta algorithm (a big win for local disk‑to‑disk).
     var wholeFile: Bool = true
     /// `--preallocate` — reserve the file's space up front to reduce fragmentation on HDDs.
@@ -177,17 +194,26 @@ struct RsyncOptions: Codable, Equatable {
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case mirrorDelete, removeSourceFiles, existingFiles, wholeFile, preallocate, inPlace
+        case mode, wholeFile, preallocate, inPlace
         case stayOnSourceFilesystem, preservePermissions, lowPriority
         case bandwidthLimitMBps, excludes, extraArgs
+        // Pre-2.0 rules stored these instead of `mode`; read only, for migration.
+        case mirrorDelete, removeSourceFiles
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = RsyncOptions()
-        mirrorDelete           = try c.decodeIfPresent(Bool.self,      forKey: .mirrorDelete)           ?? d.mirrorDelete
-        removeSourceFiles      = try c.decodeIfPresent(Bool.self,      forKey: .removeSourceFiles)      ?? d.removeSourceFiles
-        existingFiles          = try c.decodeIfPresent(ExistingFilePolicy.self, forKey: .existingFiles) ?? d.existingFiles
+
+        if let m = try c.decodeIfPresent(SyncMode.self, forKey: .mode) {
+            mode = m
+        } else {
+            // Migrate a pre-2.0 rule: move wins over mirror wins over append.
+            let legacyMove   = (try? c.decodeIfPresent(Bool.self, forKey: .removeSourceFiles)) ?? nil ?? false
+            let legacyMirror = (try? c.decodeIfPresent(Bool.self, forKey: .mirrorDelete)) ?? nil ?? false
+            mode = legacyMove ? .move : (legacyMirror ? .mirror : .append)
+        }
+
         wholeFile              = try c.decodeIfPresent(Bool.self,      forKey: .wholeFile)              ?? d.wholeFile
         preallocate            = try c.decodeIfPresent(Bool.self,      forKey: .preallocate)            ?? d.preallocate
         inPlace                = try c.decodeIfPresent(Bool.self,      forKey: .inPlace)                ?? d.inPlace
@@ -197,6 +223,20 @@ struct RsyncOptions: Codable, Equatable {
         bandwidthLimitMBps     = try c.decodeIfPresent(Double.self,    forKey: .bandwidthLimitMBps)     ?? d.bandwidthLimitMBps
         excludes               = try c.decodeIfPresent([String].self,  forKey: .excludes)               ?? d.excludes
         extraArgs              = try c.decodeIfPresent([String].self,  forKey: .extraArgs)              ?? d.extraArgs
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(mode, forKey: .mode)
+        try c.encode(wholeFile, forKey: .wholeFile)
+        try c.encode(preallocate, forKey: .preallocate)
+        try c.encode(inPlace, forKey: .inPlace)
+        try c.encode(stayOnSourceFilesystem, forKey: .stayOnSourceFilesystem)
+        try c.encode(preservePermissions, forKey: .preservePermissions)
+        try c.encode(lowPriority, forKey: .lowPriority)
+        try c.encode(bandwidthLimitMBps, forKey: .bandwidthLimitMBps)
+        try c.encode(excludes, forKey: .excludes)
+        try c.encode(extraArgs, forKey: .extraArgs)
     }
 }
 
@@ -298,11 +338,15 @@ struct AppConfig: Codable {
     var historyLimit: Int = 500
     /// Pop a modal with the run's log when a sync ends in `.failed`.
     var showFailureDialog: Bool = true
+    /// Media Organization groups shots into one event folder until the gap
+    /// between consecutive files exceeds this many hours, so a shoot that runs
+    /// past midnight stays together. 0 = off (one folder per calendar day).
+    var mediaEventGapHours: Double = 8
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case rules, rsyncPath, launchAtLogin, historyLimit, showFailureDialog
+        case rules, rsyncPath, launchAtLogin, historyLimit, showFailureDialog, mediaEventGapHours
     }
 
     init(from decoder: Decoder) throws {
@@ -312,5 +356,6 @@ struct AppConfig: Codable {
         launchAtLogin     = try c.decodeIfPresent(Bool.self,       forKey: .launchAtLogin)     ?? false
         historyLimit      = try c.decodeIfPresent(Int.self,        forKey: .historyLimit)      ?? 500
         showFailureDialog = try c.decodeIfPresent(Bool.self,       forKey: .showFailureDialog) ?? true
+        mediaEventGapHours = try c.decodeIfPresent(Double.self,    forKey: .mediaEventGapHours) ?? 8
     }
 }

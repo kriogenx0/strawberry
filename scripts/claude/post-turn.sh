@@ -1,10 +1,11 @@
 #!/bin/sh
 # Claude Code Stop hook.
 # After a turn that changed the working tree:
-#   1. make test   — run the unit tests
-#   2. make dev     — build the app and launch it
-#   3. show `git status` so you can write the commit yourself (never auto-commits)
-# A test or build failure stops the chain and reports what broke.
+#   1. make test  — run the unit tests
+#   2. make dev   — build the app and launch it
+#   3. show what changed, so a commit message can be proposed for approval
+# It never stages and never commits. A test or build failure stops the chain
+# and reports what broke.
 
 set -u
 
@@ -31,13 +32,13 @@ emit() {
 }
 
 if ! make test >"$log" 2>&1; then
-  emit "$(printf 'Stop hook: tests FAILED — skipped make dev.\n\n%s' "$(tail -n 25 "$log")")"
+  emit "$(printf 'Stop hook: tests FAILED - skipped make dev.\n\n%s' "$(tail -n 25 "$log")")"
 fi
 
 if ! make dev >>"$log" 2>&1; then
   emit "$(printf 'Stop hook: tests passed but make dev FAILED.\n\n%s' "$(tail -n 25 "$log")")"
 fi
 
-emit "$(printf 'Stop hook: tests passed, app built & launched. Uncommitted changes — write your commit:\n\n%s\n\n%s' \
+emit "$(printf 'Stop hook: tests passed - app built & launched. Nothing staged or committed - propose a commit message for approval.\n\n%s\n\n%s' \
   "$(git -c color.ui=never status --short)" \
   "$(git -c color.ui=never diff --stat HEAD)")"
