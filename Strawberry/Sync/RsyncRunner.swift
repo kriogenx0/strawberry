@@ -423,11 +423,15 @@ final class RsyncRunner {
                 emitProgress(-1, found > 0 ? "Scanning… \(found.formatted()) files" : "Scanning…")
             } else if let c = checked {
                 let fileFraction = Double(c.done) / Double(c.total)
+                let fraction = max(byteFraction, fileFraction)
                 let text = "\(c.done.formatted())/\(c.total.formatted()) files"
                     + (filesTransferred > 0 ? " · \(filesTransferred.formatted()) copied" : "")
-                emitProgress(max(byteFraction, fileFraction), text)
+                // Keep it indeterminate until there's a real fraction — otherwise
+                // a big in-sync tree sits at "0%" and strobes against the "ir-chk"
+                // scan lines that report -1.
+                emitProgress(fraction >= 0.01 ? fraction : -1, text)
             } else {
-                emitProgress(byteFraction, tidy(trimmed))
+                emitProgress(byteFraction >= 0.01 ? byteFraction : -1, tidy(trimmed))
             }
 
             // Progress lines are not logged verbatim (there can be millions of

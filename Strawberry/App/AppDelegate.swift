@@ -14,6 +14,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var menuController: MenuController?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        // Refuse to run a second copy. Two instances each start their own
+        // Scheduler and both launch the same "due" rule — that's how duplicate
+        // rsyncs pile up on one destination.
+        let mine = ProcessInfo.processInfo.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+            .filter { $0.processIdentifier != mine }
+        if let existing = others.first {
+            log.error("Another Strawberry instance is already running (pid \(existing.processIdentifier)); quitting this one.")
+            existing.activate(options: [])
+            NSApp.terminate(nil)
+            return
+        }
+
         _ = Store.shared
         menuController = MenuController()
         Scheduler.shared.start()
@@ -37,8 +50,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let syncName = Scheduler.shared.runningRuleName
+        let importing = AutoMediaSyncManager.shared.isSyncing
+        guard syncName != nil || importing else { return .terminateNow }
+
+        let what = syncName.map { "“\($0)” is still syncing" } ?? "a media import is still running"
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Quit Strawberry?"
+        alert.informativeText = "\(what). Quitting stops it partway through — rsync keeps the partial files, so it resumes next time."
+        alert.addButton(withTitle: "Quit and Stop")
+        alert.addButton(withTitle: "Keep Running")
+        return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+    }
+
     func applicationWillTerminate(_ aNotification: Notification) {
         NSWorkspace.shared.notificationCenter.removeObserver(self)
+        Scheduler.shared.shutdown()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {

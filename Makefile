@@ -26,11 +26,19 @@ test:
 		-destination 'platform=macOS' \
 		test
 
-# Kill any running instance, then launch the freshly built app.
+# Kill any running instance, then launch the freshly built app — UNLESS a sync
+# is in progress (Scheduler writes ~/Library/Application Support/Strawberry/
+# sync-in-progress.lock while an rsync runs). Killing mid-sync makes the app
+# relaunch and restart the still-"due" rule, which looks like the sync looping.
 open:
-	-pkill -x "$(SCHEME)" 2>/dev/null || true
-	@sleep 0.5
-	open "$(APP)"
+	@lock="$$HOME/Library/Application Support/$(SCHEME)/sync-in-progress.lock"; \
+	if [ -f "$$lock" ] && pgrep -x "$(SCHEME)" >/dev/null 2>&1; then \
+		echo "make open: sync in progress ($$(cat "$$lock")) — leaving the running app alone."; \
+	else \
+		pkill -x "$(SCHEME)" 2>/dev/null || true; \
+		sleep 1; \
+		open "$(APP)"; \
+	fi
 
 # Production (Release) build.
 publish:

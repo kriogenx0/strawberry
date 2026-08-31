@@ -31,21 +31,30 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // MARK: status-bar button
 
+    private var appliedTitle: String?
+
     @objc private func refreshButton() {
         guard let button = statusItem.button else { return }
         let scheduler = Scheduler.shared
 
+        // A steady label — no live percentage. rsync's byte-percent bounces around
+        // 0-2% for the whole file-list scan of a big tree, which made the title
+        // strobe. The spinning icon shows it's working; the dropdown has detail.
+        let title: String?
         if let id = scheduler.runningRuleID {
             let name = Store.shared.config.rules.first { $0.id == id }?.name ?? "Sync"
-            button.title = scheduler.isPaused
-                ? " \(name) paused"
-                : scheduler.runningProgress >= 0
-                ? " \(name) \(Int(scheduler.runningProgress * 100))%"
-                : " \(name)…"
-            button.imagePosition = .imageLeading
-            startSyncAnimation()
+            title = scheduler.isPaused ? " \(name) — paused" : " \(name)…"
         } else if AutoMediaSyncManager.shared.isSyncing {
-            button.title = " Importing…"
+            title = " Importing…"
+        } else {
+            title = nil
+        }
+
+        guard title != appliedTitle else { return }   // no-op on repeat posts
+        appliedTitle = title
+
+        if let title {
+            button.title = title
             button.imagePosition = .imageLeading
             startSyncAnimation()
         } else {

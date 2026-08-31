@@ -7,6 +7,13 @@ final class Scheduler {
     static let shared = Scheduler()
 
     private(set) var runningRuleID: UUID?
+
+    /// Name of the rule whose rsync is currently running, if any.
+    var runningRuleName: String? {
+        guard let runningRuleID else { return nil }
+        return Store.shared.config.rules.first { $0.id == runningRuleID }?.name
+    }
+
     private(set) var runningProgress: Double = -1
     private(set) var runningText: String = ""
     private(set) var isPaused = false
@@ -42,7 +49,13 @@ final class Scheduler {
     }
 
     func start() {
-        Self.clearRunningLock()   // clear a stale lock left by a crash / force-quit
+        // A lock left behind means the last session was killed mid-sync. The
+        // rsync child is a separate process and may still be finishing, so don't
+        // immediately re-run a rule that will still look "due" — that stacks a
+        // second copy on top of the orphan.
+        let uncleanShutdown = FileManager.default.fileExists(atPath: Self.runningLockURL.path)
+        Self.clearRunningLock()
+
         VolumeMonitor.shared.start()
         let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in self?.tick() }
         timer.tolerance = 15
@@ -55,7 +68,19 @@ final class Scheduler {
         wsCenter.addObserver(self, selector: #selector(volumesChanged),
                              name: NSWorkspace.didUnmountNotification, object: nil)
 
-        tick()
+        if uncleanShutdown {
+            log.error("Scheduler: unclean shutdown detected — holding automatic syncs for 5 minutes")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 300) { [weak self] in self?.tick() }
+        } else {
+            tick()
+        }
+    }
+
+    /// Best-effort clean stop when the app is quitting: SIGTERM the rsync child so
+    /// it doesn't outlive the app and get a duplicate stacked on it next launch.
+    func shutdown() {
+        currentJob?.cancel()
+        Self.clearRunningLock()
     }
 
     @objc private func volumesChanged() {
@@ -138,30 +163,38 @@ final class Scheduler {
     }
 
     /// Confirm the endpoints off the main thread (statfs on a spun-down HDD can
-    /// block for seconds), then launch. `launching` blocks re-entrancy until the
-    /// check comes back.
+    /// block for seconds), then launch.
+    ///
+    /// `runningRuleID` is reserved *synchronously* here, before the async check —
+    /// so any re-entrant `tick()` (a modal alert or `waitUntilExit` can pump the
+    /// main run loop while we're mid-flight) sees the slot taken and bails
+    /// instead of starting a duplicate rsync for the same rule.
     private func attemptLaunch(rule: SyncRule, dryRun: Bool) {
         guard currentJob == nil, runningRuleID == nil, !launching else { return }
         launching = true
+        runningRuleID = rule.id
+        runningText = "Checking drives…"
+
         VolumeMonitor.shared.verify(source: rule.source, destination: rule.destination) { [weak self] availability in
             guard let self else { return }
             self.launching = false
-            guard self.currentJob == nil, self.runningRuleID == nil else { return }
+            // Still our reservation, and nothing else grabbed the job?
+            guard self.currentJob == nil, self.runningRuleID == rule.id else { return }
             if availability.ok {
                 self.run(rule: rule, dryRun: dryRun)
             } else {
-                self.tick()   // this candidate isn't reachable; try the next
+                self.runningRuleID = nil        // release the reservation
+                self.runningText = ""
+                self.tick()                     // this candidate isn't reachable; try the next
             }
         }
     }
 
     private func run(rule: SyncRule, dryRun: Bool) {
-        // Keep this guard at the execution boundary as well as in `tick()`.
-        // All work flows through this scheduler, but this prevents a future
-        // trigger path from accidentally starting a second rsync.
-        guard currentJob == nil, runningRuleID == nil else { return }
+        // Must be running against the reservation `attemptLaunch` made, with no
+        // job already attached.
+        guard currentJob == nil, runningRuleID == rule.id else { return }
 
-        runningRuleID = rule.id
         runningProgress = -1
         runningText = "Starting…"
         isPaused = false
@@ -201,6 +234,10 @@ final class Scheduler {
                     cfg.rules[idx].lastSuccessAt = record.finishedAt
                 }
             }
+            // Clear the running state FIRST so the menu-bar goes idle and nothing
+            // is wedged. The failure alert is shown afterwards and off the hot
+            // path — a menu-bar app's modal can end up on another Space and never
+            // get dismissed, which must not freeze the scheduler.
             self.currentJob = nil
             self.runningRuleID = nil
             self.runningProgress = -1
@@ -208,9 +245,12 @@ final class Scheduler {
             self.isPaused = false
             Self.clearRunningLock()
             NotificationCenter.default.post(name: .dsRunStateChanged, object: nil)
+
             Notifier.report(record)
-            SyncFailureAlert.present(record)            // modal; blocks until dismissed
-            DispatchQueue.main.async { self.tick() }   // pick up the next queued / due rule
+            DispatchQueue.main.async {
+                SyncFailureAlert.present(record)
+                self.tick()   // pick up the next queued / due rule
+            }
         }
 
         NotificationCenter.default.post(name: .dsRunStateChanged, object: nil)

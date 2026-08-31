@@ -35,6 +35,16 @@ if ! make test >"$log" 2>&1; then
   emit "$(printf 'Stop hook: tests FAILED - skipped make dev.\n\n%s' "$(tail -n 25 "$log")")"
 fi
 
+# Don't relaunch the app while a real sync is running (make open leaves it be,
+# but skip the rebuild entirely and say so).
+sync_lock="$HOME/Library/Application Support/Strawberry/sync-in-progress.lock"
+if [ -f "$sync_lock" ] && pgrep -x Strawberry >/dev/null 2>&1; then
+  emit "$(printf 'Stop hook: tests passed. Skipped make dev - a sync is in progress (%s).\n\n%s\n\n%s' \
+    "$(cat "$sync_lock")" \
+    "$(git -c color.ui=never status --short)" \
+    "$(git -c color.ui=never diff --stat HEAD)")"
+fi
+
 if ! make dev >>"$log" 2>&1; then
   emit "$(printf 'Stop hook: tests passed but make dev FAILED.\n\n%s' "$(tail -n 25 "$log")")"
 fi
