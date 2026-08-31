@@ -56,13 +56,17 @@ final class LiveLogModel: ObservableObject {
 
 struct LiveLogView: View {
     @StateObject private var model = LiveLogModel()
+    @AppStorage("liveLogWrap") private var wrap = true
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
                 Text(model.isRunning ? "Live output — \(model.ruleName)" : "Most recent sync output")
                     .font(.headline)
                 Spacer()
+                Toggle("Wrap", isOn: $wrap)
+                    .toggleStyle(.button)
+                    .controlSize(.small)
                 if model.isRunning {
                     ProgressView().controlSize(.small)
                     Text("Live").font(.caption).foregroundStyle(.secondary)
@@ -72,18 +76,23 @@ struct LiveLogView: View {
 
             Divider()
 
-            ScrollViewReader { proxy in
-                ScrollView([.horizontal, .vertical]) {
-                    Text(model.text.isEmpty ? "Waiting for rsync output…" : model.text)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                    Color.clear.frame(height: 1).id("log-end")
-                }
-                .onAppear { proxy.scrollTo("log-end", anchor: .bottom) }
-                .onChange(of: model.text) { _ in
-                    proxy.scrollTo("log-end", anchor: .bottom)
+            GeometryReader { geo in
+                ScrollViewReader { proxy in
+                    ScrollView(wrap ? [.vertical] : [.horizontal, .vertical]) {
+                        Text(model.text.isEmpty ? "Waiting for rsync output…" : model.text)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: !wrap, vertical: false)
+                            .frame(maxWidth: wrap ? .infinity : nil, alignment: .topLeading)
+                            .padding(12)
+                            // Fill the viewport so short logs sit at the top, not centered.
+                            .frame(minHeight: geo.size.height, alignment: .topLeading)
+                        Color.clear.frame(height: 1).id("log-end")
+                    }
+                    .onAppear { proxy.scrollTo("log-end", anchor: .bottom) }
+                    .onChange(of: model.text) { _ in
+                        proxy.scrollTo("log-end", anchor: .bottom)
+                    }
                 }
             }
         }

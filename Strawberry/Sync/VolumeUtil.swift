@@ -39,17 +39,45 @@ enum VolumeUtil {
         var reason: String?
     }
 
-    /// Is `path` a usable *source* directory right now?
+    /// For a path under `/Volumes/<Name>/…`, check that `<Name>` is an actual
+    /// mounted filesystem and not a leftover empty folder on the boot disk.
+    /// Returns `nil` if the path is not under `/Volumes/` (nothing to check), the
+    /// volume name otherwise, and `ok == false` when it isn't mounted.
+    static func mountedVolumeCheck(for path: String) -> (name: String, mounted: Bool)? {
+        let std = (path as NSString).standardizingPath
+        let comps = std.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        guard comps.first == "Volumes", comps.count >= 2 else { return nil }
+
+        let root = "/Volumes/\(comps[1])"
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: root, isDirectory: &isDir), isDir.boolValue else {
+            return (comps[1], false)
+        }
+        // A real mount reports itself as its own `f_mntonname`; a stale stub on
+        // the boot disk reports `/`.
+        return (comps[1], mountPoint(for: root) == root)
+    }
+
+    /// Is `path` a usable *source* directory right now? It must exist, be a
+    /// directory, sit on a real mount (not a stale `/Volumes/…` stub), and
+    /// contain at least one item — an empty source almost always means "the
+    /// drive isn't mounted / isn't the one you think", and letting a Mirror run
+    /// against it would wipe the destination.
     static func sourceAvailable(_ path: String) -> Availability {
         let std = (path as NSString).standardizingPath
         if std.isEmpty { return .init(ok: false, reason: "no folder set") }
+
+        if let vol = mountedVolumeCheck(for: std), !vol.mounted {
+            return .init(ok: false, reason: "drive “\(vol.name)” is not mounted")
+        }
 
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: std, isDirectory: &isDir), isDir.boolValue else {
             return .init(ok: false, reason: "folder not found")
         }
-        if std.hasPrefix("/Volumes/"), mountPoint(for: std) == "/" {
-            return .init(ok: false, reason: "drive not connected")
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: std)) ?? []
+        if entries.isEmpty {
+            return .init(ok: false, reason: "source folder is empty")
         }
         return .init(ok: true, reason: nil)
     }
@@ -60,11 +88,8 @@ enum VolumeUtil {
         let std = (path as NSString).standardizingPath
         if std.isEmpty { return .init(ok: false, reason: "no folder set") }
 
-        if std.hasPrefix("/Volumes/") {
-            let mp = mountPoint(for: std) ?? "/"
-            if mp == "/" {
-                return .init(ok: false, reason: "drive not connected")
-            }
+        if let vol = mountedVolumeCheck(for: std), !vol.mounted {
+            return .init(ok: false, reason: "drive “\(vol.name)” is not mounted")
         }
         // The nearest existing ancestor must be a real directory.
         var probe = std
