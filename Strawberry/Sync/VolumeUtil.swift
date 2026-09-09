@@ -1,6 +1,5 @@
 import Foundation
 import Darwin
-import AppKit
 
 /// Helpers for deciding whether a rule's endpoints are actually present.
 ///
@@ -40,21 +39,29 @@ enum VolumeUtil {
     }
 
     /// For a path under `/Volumes/<Name>/…`, check that `<Name>` is an actual
-    /// mounted filesystem and not a leftover empty folder on the boot disk.
+    /// mounted volume and not a leftover empty folder on the boot disk.
     /// Returns `nil` if the path is not under `/Volumes/` (nothing to check), the
-    /// volume name otherwise, and `ok == false` when it isn't mounted.
+    /// volume name and its mounted state otherwise.
     static func mountedVolumeCheck(for path: String) -> (name: String, mounted: Bool)? {
         let std = (path as NSString).standardizingPath
         let comps = std.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
         guard comps.first == "Volumes", comps.count >= 2 else { return nil }
 
-        let root = "/Volumes/\(comps[1])"
+        let root = URL(fileURLWithPath: "/Volumes/\(comps[1])").resolvingSymlinksInPath().path
+
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: root, isDirectory: &isDir), isDir.boolValue else {
             return (comps[1], false)
         }
-        // A real mount reports itself as its own `f_mntonname`; a stale stub on
-        // the boot disk reports `/`.
+
+        // Authoritative: is `root` in the live list of mounted volumes?
+        if let vols = FileManager.default.mountedVolumeURLs(
+            includingResourceValuesForKeys: nil, options: [.skipHiddenVolumes]) {
+            let listed = vols.contains { $0.resolvingSymlinksInPath().path == root }
+            if listed { return (comps[1], true) }
+        }
+        // Fallback: a real mount reports itself as its own `f_mntonname`; a stale
+        // stub on the boot disk reports `/` (or the data volume on modern macOS).
         return (comps[1], mountPoint(for: root) == root)
     }
 
@@ -109,79 +116,5 @@ enum VolumeUtil {
         let d = destinationAvailable(destination)
         guard d.ok else { return .init(ok: false, reason: "destination: \(d.reason ?? "unavailable")") }
         return .init(ok: true, reason: nil)
-    }
-}
-
-/// `VolumeUtil.availability` calls `statfs`/`fileExists` on `/Volumes/<name>`,
-/// which blocks for *seconds* when an external HDD is spun down. This keeps a
-/// background-refreshed cache so the menu and scheduler never do that on the
-/// main thread.
-final class VolumeMonitor {
-    static let shared = VolumeMonitor()
-
-    private let queue = DispatchQueue(label: "com.drivesyncer.volumes", qos: .utility)
-    private let lock = NSLock()
-    private var cache: [String: VolumeUtil.Availability] = [:]
-    private var timer: DispatchSourceTimer?
-
-    private init() {}
-
-    private static func key(_ source: String, _ destination: String) -> String {
-        source + "\u{0}" + destination
-    }
-
-    func start() {
-        queue.async { [weak self] in self?.refreshAll() }
-
-        let t = DispatchSource.makeTimerSource(queue: queue)
-        t.schedule(deadline: .now() + 15, repeating: 15)
-        t.setEventHandler { [weak self] in self?.refreshAll() }
-        t.resume()
-        timer = t
-
-        let nc = NSWorkspace.shared.notificationCenter
-        nc.addObserver(self, selector: #selector(volumesChanged),
-                       name: NSWorkspace.didMountNotification, object: nil)
-        nc.addObserver(self, selector: #selector(volumesChanged),
-                       name: NSWorkspace.didUnmountNotification, object: nil)
-    }
-
-    @objc private func volumesChanged() {
-        queue.async { [weak self] in self?.refreshAll() }
-    }
-
-    /// Instant and main-thread-safe. Assumes "available" until the first probe
-    /// finishes, so a rule isn't briefly shown as broken at launch.
-    func cached(source: String, destination: String) -> VolumeUtil.Availability {
-        lock.lock(); defer { lock.unlock() }
-        return cache[Self.key(source, destination)] ?? VolumeUtil.Availability(ok: true, reason: nil)
-    }
-
-    /// Authoritative check off the main thread; `completion` runs on the main queue.
-    func verify(source: String, destination: String,
-                completion: @escaping (VolumeUtil.Availability) -> Void) {
-        queue.async { [weak self] in
-            let result = VolumeUtil.availability(source: source, destination: destination)
-            if let self {
-                self.lock.lock()
-                self.cache[Self.key(source, destination)] = result
-                self.lock.unlock()
-            }
-            DispatchQueue.main.async { completion(result) }
-        }
-    }
-
-    /// Runs on `queue`.
-    private func refreshAll() {
-        let rules = DispatchQueue.main.sync { Store.shared.config.rules }
-        var next: [String: VolumeUtil.Availability] = [:]
-        for rule in rules where !(rule.source.isEmpty && rule.destination.isEmpty) {
-            next[Self.key(rule.source, rule.destination)] =
-                VolumeUtil.availability(source: rule.source, destination: rule.destination)
-        }
-        lock.lock(); cache = next; lock.unlock()
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .dsConfigChanged, object: nil)
-        }
     }
 }

@@ -195,6 +195,19 @@ final class Scheduler {
         // job already attached.
         guard currentJob == nil, runningRuleID == rule.id else { return }
 
+        // Final, synchronous endpoint check right before launch — the drive that
+        // passed the off-main check a moment ago could have unmounted since, and
+        // launching a Mirror against a gone source would wipe the destination.
+        let endpoints = VolumeUtil.availability(source: rule.source, destination: rule.destination)
+        guard endpoints.ok else {
+            log.error("Scheduler: not starting \(rule.name) — \(endpoints.reason ?? "endpoint unavailable")")
+            runningRuleID = nil
+            runningText = ""
+            Self.clearRunningLock()
+            NotificationCenter.default.post(name: .dsRunStateChanged, object: nil)
+            return
+        }
+
         runningProgress = -1
         runningText = "Starting…"
         isPaused = false
