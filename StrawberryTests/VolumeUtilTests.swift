@@ -13,6 +13,25 @@ final class VolumeUtilTests: XCTestCase {
     /// A /Volumes name that is essentially guaranteed not to be a real mount.
     private let ghost = "StrawberryGhostVolume-\(UUID().uuidString)"
 
+    // MARK: path(_:isOn:)
+
+    func testPathOnVolumeMatchesRootAndChildren() {
+        XCTAssertTrue(VolumeUtil.path("/Volumes/Titan", isOn: "/Volumes/Titan"))
+        XCTAssertTrue(VolumeUtil.path("/Volumes/Titan/Events", isOn: "/Volumes/Titan"))
+    }
+
+    func testPathOnVolumeRejectsNamePrefixCollision() {
+        // "/Volumes/Titanic" must not match "/Volumes/Titan".
+        XCTAssertFalse(VolumeUtil.path("/Volumes/Titanic", isOn: "/Volumes/Titan"))
+        XCTAssertFalse(VolumeUtil.path("/Volumes/Titanic/Events", isOn: "/Volumes/Titan"))
+    }
+
+    func testPathOnVolumeRejectsUnrelatedOrEmptyPaths() {
+        XCTAssertFalse(VolumeUtil.path("/Volumes/Other", isOn: "/Volumes/Titan"))
+        XCTAssertFalse(VolumeUtil.path("", isOn: "/Volumes/Titan"))
+        XCTAssertFalse(VolumeUtil.path("/Volumes/Titan", isOn: ""))
+    }
+
     // MARK: mountedVolumeCheck
 
     func testNonVolumePathIsNotChecked() {

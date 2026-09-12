@@ -63,9 +63,9 @@ final class Scheduler {
         self.timer = timer
 
         let wsCenter = NSWorkspace.shared.notificationCenter
-        wsCenter.addObserver(self, selector: #selector(volumesChanged),
+        wsCenter.addObserver(self, selector: #selector(volumeDidMount(_:)),
                              name: NSWorkspace.didMountNotification, object: nil)
-        wsCenter.addObserver(self, selector: #selector(volumesChanged),
+        wsCenter.addObserver(self, selector: #selector(volumeDidUnmount(_:)),
                              name: NSWorkspace.didUnmountNotification, object: nil)
 
         if uncleanShutdown {
@@ -83,9 +83,35 @@ final class Scheduler {
         Self.clearRunningLock()
     }
 
-    @objc private func volumesChanged() {
+    /// A drive just mounted. Its rules may have been sitting unavailable (source
+    /// or destination on that volume) with a due sync waiting — rather than wait
+    /// for the next periodic tick / cache refresh, find those rules and queue
+    /// them now. `attemptLaunch` still does its own authoritative check, so this
+    /// is only ever an earlier attempt, never an unsafe one.
+    @objc private func volumeDidMount(_ notification: Notification) {
+        NotificationCenter.default.post(name: .dsConfigChanged, object: nil)  // refresh menu glyphs
+        if let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL {
+            queueOverdueRules(onVolume: url.path)
+        }
+        tick()
+    }
+
+    @objc private func volumeDidUnmount(_ notification: Notification) {
         NotificationCenter.default.post(name: .dsConfigChanged, object: nil)  // refresh menu glyphs
         tick()
+    }
+
+    private func queueOverdueRules(onVolume root: String) {
+        let now = Date()
+        for rule in Store.shared.config.rules where rule.enabled {
+            guard VolumeUtil.path(rule.source, isOn: root) || VolumeUtil.path(rule.destination, isOn: root)
+            else { continue }
+            let base = rule.lastSuccessAt ?? .distantPast
+            guard rule.interval.isDue(since: base, at: now) else { continue }
+            if let lastRun = rule.lastRunAt,
+               now.timeIntervalSince(lastRun) < Self.autoRetryBackoff { continue }
+            if !manualQueue.contains(rule.id) { manualQueue.append(rule.id) }
+        }
     }
 
     // MARK: public triggers

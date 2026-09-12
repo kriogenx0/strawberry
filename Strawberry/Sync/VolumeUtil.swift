@@ -33,6 +33,16 @@ enum VolumeUtil {
         return mp == "/" ? "Macintosh HD" : (mp as NSString).lastPathComponent
     }
 
+    /// Is `path` the given volume root itself, or somewhere under it? Used to
+    /// find which rules touch a volume that just mounted or unmounted. A plain
+    /// `hasPrefix` would wrongly match "/Volumes/Titanic" against "/Volumes/Titan".
+    static func path(_ path: String, isOn volumeRoot: String) -> Bool {
+        guard !path.isEmpty, !volumeRoot.isEmpty else { return false }
+        let std = (path as NSString).standardizingPath
+        let root = (volumeRoot as NSString).standardizingPath
+        return std == root || std.hasPrefix(root + "/")
+    }
+
     struct Availability {
         var ok: Bool
         var reason: String?
