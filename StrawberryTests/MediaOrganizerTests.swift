@@ -80,4 +80,46 @@ final class MediaOrganizerTests: XCTestCase {
         }
         XCTAssertEqual(folders, ["2026/08-03/100CANON", "2026/08-03/100CANON"])
     }
+
+    // MARK: - Same-day event disambiguation
+
+    func testSingleEventInADayGetsPlainDayLabel() {
+        let dates = [at(2026, 8, 3, 23, 0), at(2026, 8, 4, 1, 0)]
+        let starts = MediaOrganizer.eventStartDates(forSorted: dates, gap: eightHours)
+        XCTAssertEqual(MediaOrganizer.dayFolderNames(forEventStarts: starts), ["08-03", "08-03"])
+    }
+
+    func testTwoEventsSameDayGetNumberedLabels() {
+        // Morning shoot, evening shoot, >8h apart: two events, same calendar day.
+        let dates = [at(2026, 8, 3, 9, 0), at(2026, 8, 3, 9, 30),
+                     at(2026, 8, 3, 21, 0), at(2026, 8, 3, 21, 15)]
+        let starts = MediaOrganizer.eventStartDates(forSorted: dates, gap: eightHours)
+        XCTAssertEqual(MediaOrganizer.dayFolderNames(forEventStarts: starts),
+                       ["08-03 Event 1", "08-03 Event 1", "08-03 Event 2", "08-03 Event 2"])
+    }
+
+    func testThirdEventSameDayIsNumberedInOrder() {
+        let starts = [at(2026, 8, 3, 6, 0), at(2026, 8, 3, 15, 0), at(2026, 8, 3, 23, 30)]
+        XCTAssertEqual(MediaOrganizer.dayFolderNames(forEventStarts: starts),
+                       ["08-03 Event 1", "08-03 Event 2", "08-03 Event 3"])
+    }
+
+    func testSameDayLabelingDoesNotBleedAcrossOtherDays() {
+        // 8/3 has two events; 8/4 has one — only 8/3 should get numbered.
+        let starts = [at(2026, 8, 3, 6, 0), at(2026, 8, 3, 20, 0), at(2026, 8, 4, 10, 0)]
+        XCTAssertEqual(MediaOrganizer.dayFolderNames(forEventStarts: starts),
+                       ["08-03 Event 1", "08-03 Event 2", "08-04"])
+    }
+
+    func testNumberedDayLabelFlowsIntoTheDestinationFolder() {
+        let dates = [at(2026, 8, 3, 9, 0), at(2026, 8, 3, 9, 30),
+                     at(2026, 8, 3, 21, 0), at(2026, 8, 3, 21, 15)]
+        let starts = MediaOrganizer.eventStartDates(forSorted: dates, gap: eightHours)
+        let labels = MediaOrganizer.dayFolderNames(forEventStarts: starts)
+        let folders = zip(starts, labels).map {
+            MediaOrganizer.relativeDestination(for: $0, dayLabel: $1, sourceFolder: "100CANON", isVideo: false)
+        }
+        XCTAssertEqual(folders, ["2026/08-03 Event 1/100CANON", "2026/08-03 Event 1/100CANON",
+                                 "2026/08-03 Event 2/100CANON", "2026/08-03 Event 2/100CANON"])
+    }
 }

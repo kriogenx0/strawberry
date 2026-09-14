@@ -30,18 +30,25 @@ enum MediaOrganizer {
     }
 
     /// Where a file taken on `date` from camera folder `sourceFolder` should live,
-    /// relative to the DCIM directory being organized. Pure — no filesystem.
-    static func relativeDestination(for date: Date, sourceFolder: String, isVideo: Bool) -> String {
+    /// relative to the DCIM directory being organized. `dayLabel` overrides the
+    /// default `MM-dd` day-folder name (used to disambiguate same-day events —
+    /// see `dayFolderNames(forEventStarts:)`); pure — no filesystem.
+    static func relativeDestination(for date: Date, dayLabel: String? = nil, sourceFolder: String, isVideo: Bool) -> String {
         let yearFormatter = DateFormatter()
         yearFormatter.dateFormat = "yyyy"
         let year = yearFormatter.string(from: date)
 
-        let monthDayFormatter = DateFormatter()
-        monthDayFormatter.dateFormat = "MM-dd"
-        let monthDay = monthDayFormatter.string(from: date)
+        let label: String
+        if let dayLabel {
+            label = dayLabel
+        } else {
+            let monthDayFormatter = DateFormatter()
+            monthDayFormatter.dateFormat = "MM-dd"
+            label = monthDayFormatter.string(from: date)
+        }
 
         let formatFolder = isVideo ? "\(sourceFolder)-video" : sourceFolder
-        return "\(year)/\(monthDay)/\(formatFolder)"
+        return "\(year)/\(label)/\(formatFolder)"
     }
 
     /// For a list of timestamps **sorted ascending**, returns the "event start"
@@ -59,6 +66,45 @@ enum MediaOrganizer {
             previous = date
         }
         return starts
+    }
+
+    /// Day-folder name for each item's event-start date: plain `MM-dd` normally,
+    /// but `MM-dd Event 1` / `MM-dd Event 2` / … when the gap split the same
+    /// calendar day into more than one distinct event — otherwise a second event
+    /// on the same day would fold right back into the first event's folder,
+    /// which is exactly what the gap was set up to keep apart. Numbered in
+    /// chronological order within the day. `starts` is expected to be the output
+    /// of `eventStartDates(forSorted:gap:)` (i.e. already chronological). Pure.
+    static func dayFolderNames(forEventStarts starts: [Date]) -> [String] {
+        let keyFormatter = DateFormatter()
+        keyFormatter.dateFormat = "yyyy-MM-dd"
+        let labelFormatter = DateFormatter()
+        labelFormatter.dateFormat = "MM-dd"
+
+        // Distinct event anchors, first-seen order — chronological, since
+        // `starts` comes from sorted input.
+        var order: [Date] = []
+        var seen = Set<Date>()
+        for d in starts where !seen.contains(d) {
+            seen.insert(d)
+            order.append(d)
+        }
+
+        var eventsPerDay: [String: Int] = [:]
+        var indexInDay: [Date: Int] = [:]
+        for d in order {
+            let key = keyFormatter.string(from: d)
+            let count = (eventsPerDay[key] ?? 0) + 1
+            eventsPerDay[key] = count
+            indexInDay[d] = count
+        }
+
+        return starts.map { d in
+            let key = keyFormatter.string(from: d)
+            let label = labelFormatter.string(from: d)
+            guard (eventsPerDay[key] ?? 1) > 1, let idx = indexInDay[d] else { return label }
+            return "\(label) Event \(idx)"
+        }
     }
 
     static func runOnDirectory(directoryUrl: URL) {
@@ -121,12 +167,13 @@ enum MediaOrganizer {
 
             items.sort { $0.date < $1.date }
             let eventStarts = eventStartDates(forSorted: items.map(\.date), gap: gap)
+            let dayLabels = dayFolderNames(forEventStarts: eventStarts)
             log.info("Organizing \(items.count) file(s) in \(folderName)")
 
-            for (item, eventStart) in zip(items, eventStarts) {
-                let relative = relativeDestination(for: eventStart,
-                                                   sourceFolder: folderName,
-                                                   isVideo: item.isVideo)
+            for i in items.indices {
+                let item = items[i]
+                let relative = relativeDestination(for: eventStarts[i], dayLabel: dayLabels[i],
+                                                   sourceFolder: folderName, isVideo: item.isVideo)
                 let destinationDirUrl = directoryUrl.appendingPathComponent(relative, isDirectory: true)
 
                 do {
